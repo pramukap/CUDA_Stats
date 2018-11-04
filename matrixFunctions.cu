@@ -44,9 +44,9 @@ __device__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 		double prod;
 		for (count = 0; count < Ax; count++) {
 			// row of C matrix
-			Aindex = (x / Bx) + count;
+			Aindex = (x / Bx) * Ax + count;
 			// column of C matrix
-			Bindex = (x % Bx) + count;
+			Bindex = (x % Bx) + By * count;
 			prod = A[Aindex] * B[Bindex];
 			C[x] += prod;
 		}
