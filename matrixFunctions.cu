@@ -19,7 +19,6 @@ __device__ void MatrixSMul(double * A, double * B, double X) {
 // transpose function, A is input, B is output, Ax and Ay are the dimensions of A
 __device__ void MatrixTranspose(double * A, double * B, int Ax, int Ay) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
-	int y = threadIdx.x;
 	int new_row, new_loc;
 	if (x == 0) {
 		new_loc = 0;
@@ -30,4 +29,26 @@ __device__ void MatrixTranspose(double * A, double * B, int Ax, int Ay) {
 	}
 
 	B[new_loc] = A[x];
+}
+
+// multiplies the matrices A and B and stores them into C
+// Ax, Ay, Bx, By are the dimensions
+// use a thread for each element of the final C array.
+__device__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, int Bx, int By) {
+	if (Ax == By) {
+		// total array position
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+
+		int count;
+		int Aindex, Bindex;
+		double prod;
+		for (count = 0; count < Ax; count++) {
+			// row of C matrix
+			Aindex = (x / Bx) + count;
+			// column of C matrix
+			Bindex = (x % Bx) + count;
+			prod = A[Aindex] * B[Bindex];
+			C[x] += prod;
+		}
+	}
 }
