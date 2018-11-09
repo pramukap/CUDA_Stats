@@ -52,3 +52,38 @@ __device__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 		}
 	}
 }
+
+
+// inverts a matrix A by turning first N columns of A|I into RREF
+// # threads = 2N
+
+//TODO: write rule for swapping
+//TODO: write function to concatenate identity matrix to the end of A
+//              effectively     A:-> A|I
+
+// each thread corresponds to a particular column
+
+// perform division on row to turn leading nonzero into a 1
+// perform elimination on all other rows to make pivot column 0s
+__device__ void MatrixInverse(double *A, int Ax, int Ay){
+
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+    int current_pivot_col = 0;
+
+    for(int i = 0; i < Ax; i++){
+        a[i*Ax + col] = a[i*Ax + col] / a[i*Ax + i];
+
+        __syncthreads();
+        
+        for(int j = 0; j < Ax; i++){
+            if(j != i){
+                a[j*Ax+col] = A[j*Ax+col] - A[j*Ax + i]*A[i*Ax + col];
+            }
+        }
+
+        __syncthreads();
+
+    }
+
+}
