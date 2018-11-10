@@ -97,8 +97,8 @@ __device__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int 
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (i % (2 * num_col) < num_col){
-        dst[i] = x[(num_row*(i/num_row))+ (i % (2*num_row))];
-    } else if (i - num_row == i / (2*num_row)) {
+        dst[i] = x[(num_row*(i/(2*num_row)))+ (i % (2*num_row))];
+    } else if ((i%(2*num_row) - num_row == i / (2*num_row)) {
         dst[i] = 1;
     } else {
         dst[i] = 0;
