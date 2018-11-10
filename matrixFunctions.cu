@@ -87,3 +87,32 @@ __device__ void MatrixInverse(double *A, int Ax, int Ay){
     }
 
 }
+
+// Function that appends an identity matrix to the right of the current matrix
+// keeping new matrix in row major form
+// constant time in parallel
+// assume that dst has 2*N*N = 2*len(src) allocated
+__device__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int num_col){
+
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (i % (2 * num_col) < num_col){
+        dst[i] = x[(3*(i/num_row))+ (i % (2*num_row))];
+    } else if (i - num_row == i / (2*num_row)) {
+        dst[i] = 1;
+    } else {
+        dst[i] = 0;
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
