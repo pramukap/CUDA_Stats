@@ -53,7 +53,6 @@ __device__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 	}
 }
 
-
 // inverts a matrix A by turning first N columns of A|I into RREF
 // # threads = 2N
 
@@ -65,26 +64,26 @@ __device__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 
 // perform division on row to turn leading nonzero into a 1
 // perform elimination on all other rows to make pivot column 0s
-__device__ void MatrixInverse(double *A, int Ax, int Ay){
+__device__ void MatrixInverse(double *A, int Ax, int Ay) {
 
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
+	int col = blockIdx.x * blockDim.x + threadIdx.x;
 
-    int current_pivot_col = 0;
+	int current_pivot_col = 0;
 
-    for(int i = 0; i < Ax; i++){
-        a[i*Ax + col] = a[i*Ax + col] / a[i*Ax + i];
+	for (int i = 0; i < Ax; i++) {
+		A[i*Ax + col] = A[i*Ax + col] / A[i*Ax + i];
 
-        __syncthreads();
-        
-        for(int j = 0; j < Ax; i++){
-            if(j != i){
-                a[j*Ax+col] = A[j*Ax+col] - A[j*Ax + i]*A[i*Ax + col];
-            }
-        }
+		__syncthreads();
 
-        __syncthreads();
+		for (int j = 0; j < Ax; i++) {
+			if (j != i) {
+				A[j*Ax + col] = A[j*Ax + col] - A[j*Ax + i] * A[i*Ax + col];
+			}
+		}
 
-    }
+		__syncthreads();
+
+	}
 
 }
 
@@ -92,17 +91,19 @@ __device__ void MatrixInverse(double *A, int Ax, int Ay){
 // keeping new matrix in row major form
 // constant time in parallel
 // assume that dst has 2*N*N = 2*len(src) allocated
-__device__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int num_col){
+__device__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int num_col) {
 
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (i % (2 * num_col) < num_col){
-        dst[i] = x[(num_row*(i/(2*num_row)))+ (i % (2*num_row))];
-    } else if ((i%(2*num_row) - num_row == i / (2*num_row)) {
-        dst[i] = 1;
-    } else {
-        dst[i] = 0;
-    }
+	if (i % (2 * num_col) < num_col) {
+		dst[i] = src[(num_row*(i / (2 * num_row))) + (i % (2 * num_row))];
+	}
+	else if ((i % (2 * num_row) - num_row == i / (2 * num_row))) {
+		dst[i] = 1;
+	}
+	else {
+		dst[i] = 0;
+	}
 
 }
 
