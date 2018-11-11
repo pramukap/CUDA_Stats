@@ -109,7 +109,16 @@ __device__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int 
 
 
 
+__device__ void MatrixAppendIdentity(double *src, double* dst, int num_row, int num_col){
+    
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
 
+    if (i % (2*num_col) >= num_col){
+		dst[(num_row*(i / (2 * num_row))) + (i % (2 * num_row) - num_row)] = src[i];
+    }
+
+
+}
 
 
 
