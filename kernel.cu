@@ -5,8 +5,8 @@
 #include <stdio.h>
 
 // define matrix size
-#define X 20
-#define Y 1000
+#define X	3
+#define Y	3 
 
 // possible matrix struct, didnt use here
 struct Matrix {
@@ -18,7 +18,9 @@ struct Matrix {
 
 // kernel that calls the function
 __global__ void MatrixKernel(double * A, double * B, int Ax, int Ay) {
-	MatrixTranspose(A, B, Ax, Ay);
+//	MatrixAppendIdentity(A, B, Ax, Ay);
+//	MatrixInverse(B, 2*Ax, Ay);
+//	ExtractInverse(B, A, Ax, Ay);
 }
 
 int main()
@@ -26,16 +28,19 @@ int main()
 	int size = X * Y * sizeof(double);
 	int arrSize = X * Y;
 	double * MatA = (double *)malloc(size);
-	double * MatB = (double *)malloc(size);
+	double * MatB = (double *)malloc(2 * size);
 	double * MatA_d;
 	double * MatB_d;
 	
 	cudaMalloc((void **)&MatA_d, size);
-	cudaMalloc((void **)&MatB_d, size);
+	cudaMalloc((void **)&MatB_d, 2 * size);
 
+	double Mat[9] = {1, 2, 3, 0, 1, 4, 5, 6, 0};
+	memcpy(MatA, Mat, 9);
+	
 	int x;
 	for (x = 0; x < arrSize; x++) {
-		MatA[x] = x;
+		//MatA[x] = x;
 		printf("%d ", (int)MatA[x]);
 		if (x != 0) {
 			if ((x % X) == (X - 1)) {
@@ -46,12 +51,15 @@ int main()
 	printf("\n");
 	cudaMemcpy(MatA_d, MatA, size, cudaMemcpyHostToDevice);
 
-	MatrixKernel << <X, Y >> > (MatA_d, MatB_d, X, Y);
+	//MatrixKernel << <X, Y >> > (MatA_d, MatB_d, X, Y);
+	MatrixAppendIdentity <<<X, 2*Y>>> (MatA_d, MatB_d, X, Y);
+	MatrixInverse <<<1, 2*X>>> (MatB_d, 2*X, Y);
+	ExtractInverse <<<X, 2*Y>>> (MatB_d, MatA_d, X, Y);
 
-	cudaMemcpy(MatB, MatB_d, size, cudaMemcpyDeviceToHost);
+	cudaMemcpy(MatA, MatA_d, size, cudaMemcpyDeviceToHost);
 
 	for (x = 0; x < arrSize; x++) {
-		printf("%d ", (int)MatB[x]);
+		printf("%d ", (int)MatA[x]);
 		if (x != 0) {
 			if ((x % Y) == (Y - 1)) {
 				printf("\n");

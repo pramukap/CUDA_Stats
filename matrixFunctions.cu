@@ -64,20 +64,20 @@ __device__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 
 // perform division on row to turn leading nonzero into a 1
 // perform elimination on all other rows to make pivot column 0s
-__device__ void MatrixInverse(double *A, int Ax, int Ay) {
+__global__ void MatrixInverse(double *A, int Ax, int Ay) {
 
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
 
 	int current_pivot_col = 0;
 
 	for (int i = 0; i < Ax; i++) {
-		A[i*Ax + col] = A[i*Ax + col] / A[i*Ax + i];
+		A[i*Ay + col] = A[i*Ay + col] / A[i*Ay + i];
 
 		__syncthreads();
 
 		for (int j = 0; j < Ax; i++) {
 			if (j != i) {
-				A[j*Ax + col] = A[j*Ax + col] - A[j*Ax + i] * A[i*Ax + col];
+				A[j*Ay + col] = A[j*Ay + col] - A[j*Ay + i] * A[i*Ay + col];
 			}
 		}
 
@@ -91,7 +91,7 @@ __device__ void MatrixInverse(double *A, int Ax, int Ay) {
 // keeping new matrix in row major form
 // constant time in parallel
 // assume that dst has 2*N*N = 2*len(src) allocated
-__device__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int num_col) {
+__global__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int num_col) {
 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -109,7 +109,7 @@ __device__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int 
 
 
 
-__device__ void ExtractInverse(double *src, double* dst, int num_row, int num_col){
+__global__ void ExtractInverse(double *src, double* dst, int num_row, int num_col){
     
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
