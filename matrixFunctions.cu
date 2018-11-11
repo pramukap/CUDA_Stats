@@ -109,7 +109,7 @@ __device__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int 
 
 
 
-__device__ void MatrixAppendIdentity(double *src, double* dst, int num_row, int num_col){
+__device__ void ExtractInverse(double *src, double* dst, int num_row, int num_col){
     
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
