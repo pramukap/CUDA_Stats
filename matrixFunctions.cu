@@ -71,6 +71,25 @@ __global__ void MatrixInverse(double *A, int Ax, int Ay) {
 	int current_pivot_col = 0;
 
 	for (int i = 0; i < Ax; i++) {
+
+        // SWAP CODE
+        if (i == col && A[i*Ay + col] == 0){
+            for(int k = i; k < Ax; k++){
+                if(A[k*Ay + col] != 0){
+                    for(int x = 0; x < Ay; x++){
+                        int tmp = A[i*Ay+x];
+                        A[i*Ay+x] = A[k*Ay+x];
+                        A[k*Ay +x] = tmp;
+                    }
+                    break;
+                }
+
+            }
+        }
+
+        __syncthreads();
+
+
 		A[i*Ay + col] = A[i*Ay + col] / A[i*Ay + i];
 
 		__syncthreads();
