@@ -34,7 +34,7 @@ __device__ void MatrixTranspose(double * A, double * B, int Ax, int Ay) {
 // multiplies the matrices A and B and stores them into C
 // Ax, Ay, Bx, By are the dimensions
 // use a thread for each element of the final C array.
-__device__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, int Bx, int By) {
+__global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, int Bx, int By) {
 	if (Ax == By) {
 		// total array position
 		int x = blockIdx.x * blockDim.x + threadIdx.x;

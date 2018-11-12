@@ -42,5 +42,7 @@ int     main(void)
     }
     std::cout << "Passed: vec_scalar_mul" << std::endl;
 
+    cudaFree(a);
+    cudaFree(b);
     return 0;
 }
