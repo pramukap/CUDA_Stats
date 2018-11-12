@@ -4,7 +4,7 @@
 #include    <cstddef>
 #include    <cmath>
 
-__device__
+__global__
 void    vec_dot_product(double *a, double *b, double *out, size_t stride, size_t n)
 {
     extern __shared__ double temp[];
@@ -27,7 +27,7 @@ void    vec_dot_product(double *a, double *b, double *out, size_t stride, size_t
         out[blockIdx.x] = temp[0];
 }
 
-__device__
+__global__
 void    vec_scalar_mul(double *a, double *out, double c, size_t stride, size_t n) 
 {
     size_t tid = threadIdx.x;
@@ -38,7 +38,7 @@ void    vec_scalar_mul(double *a, double *out, double c, size_t stride, size_t n
         out[idx] = a[idx] * c;
 }
 
-__device__
+__global__
 void    vec_sigmoid(double *a, double *out, size_t stride, size_t n) 
 {
     size_t tid = threadIdx.x;
@@ -49,8 +49,8 @@ void    vec_sigmoid(double *a, double *out, size_t stride, size_t n)
         out[idx] = 1 / (1 + exp(-a[idx]));
 }
 
-__device__
-void    vec_logloss(double *h, double *y, size_t stride, size_t n) 
+__global__
+void    vec_logloss(double *h, double *y, double *out, size_t stride, size_t n) 
 {
     extern __shared__ double temp[];
     size_t tid = threadIdx.x;
