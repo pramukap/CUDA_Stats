@@ -64,46 +64,47 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 
 // perform division on row to turn leading nonzero into a 1
 // perform elimination on all other rows to make pivot column 0s
+// call so Ax = AY and Ay = 2 * AX
 __global__ void MatrixInverse(double *A, int Ax, int Ay) {
 
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
-
+	double mult;
+	double to_mult;
+	double old_val;
 	int current_pivot_col = 0;
+	int i = 0;
+	for (i = 0; i < Ax; i++) {
+		// SWAP CODE
+		if (i == col && A[i*Ay + col] == 0) {
+			for (int k = i; k < Ax; k++) {
+				if (A[k*Ay + col] != 0) {
+					for (int x = 0; x < Ay; x++) {
+						int tmp = A[i*Ay + x];
+						A[i*Ay + x] = A[k*Ay + x];
+						A[k*Ay + x] = tmp;
+					}
+					break;
+				}
 
-	for (int i = 0; i < Ax; i++) {
+			}
+		}
 
-        // SWAP CODE
-        if (i == col && A[i*Ay + col] == 0){
-            for(int k = i; k < Ax; k++){
-                if(A[k*Ay + col] != 0){
-                    for(int x = 0; x < Ay; x++){
-                        int tmp = A[i*Ay+x];
-                        A[i*Ay+x] = A[k*Ay+x];
-                        A[k*Ay +x] = tmp;
-                    }
-                    break;
-                }
-
-            }
-        }
-
-        __syncthreads();
-
-
+		// divide element by pivot
+		__syncthreads();
 		A[i*Ay + col] = A[i*Ay + col] / A[i*Ay + i];
-
 		__syncthreads();
 
-		for (int j = 0; j < Ax; i++) {
-			if (j != i) {
-				A[j*Ay + col] = A[j*Ay + col] - A[j*Ay + i] * A[i*Ay + col];
+		for (int j = 0; j < Ax; j++) {
+			mult = A[j*Ay + i];
+			to_mult = A[i*Ay + col];
+			old_val = A[j*Ay + col];
+			if ((j != i) && (A[j*Ay + i] != 0)) {
+				A[j*Ay + col] = old_val - mult * to_mult;
 			}
 		}
 
 		__syncthreads();
-
 	}
-
 }
 
 // Function that appends an identity matrix to the right of the current matrix

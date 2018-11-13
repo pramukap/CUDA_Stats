@@ -1,4 +1,3 @@
-
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
@@ -32,44 +31,44 @@ struct Matrix {
 __global__ void MatrixInverse(double *A, int Ax, int Ay) {
 
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
-
+	double mult;
+	double to_mult;
+	double old_val;
 	int current_pivot_col = 0;
-
-	for (int i = 0; i < Ax; i++) {
-
+	int i = 0;
+	for (i = 0; i < Ax; i++) {
 		// SWAP CODE
-		//if (i == col && A[i*Ay + col] == 0) {
-			//for (int k = i; k < Ax; k++) {
-				//if (A[k*Ay + col] != 0) {
-					//for (int x = 0; x < Ay; x++) {
-						//int tmp = A[i*Ay + x];
-						//A[i*Ay + x] = A[k*Ay + x];
-						//A[k*Ay + x] = tmp;
-					//}
-					//break;
-				//}
+		if (i == col && A[i*Ay + col] == 0) {
+			for (int k = i; k < Ax; k++) {
+				if (A[k*Ay + col] != 0) {
+					for (int x = 0; x < Ay; x++) {
+						int tmp = A[i*Ay + x];
+						A[i*Ay + x] = A[k*Ay + x];
+						A[k*Ay + x] = tmp;
+					}
+					break;
+				}
 
-			//}
-		//}
+			}
+		}
 
+		// divide element by pivot
 		__syncthreads();
-
-
 		A[i*Ay + col] = A[i*Ay + col] / A[i*Ay + i];
-
 		__syncthreads();
 
-		for (int j = 0; j < Ax; i++) {
-			if (j != i) {
-				A[j*Ay + col] = A[j*Ay + col] - A[j*Ay + i] * A[i*Ay + col];
+		for (int j = 0; j < Ax; j++) {
+			mult = A[j*Ay + i];
+			to_mult = A[i*Ay + col];
+			old_val = A[j*Ay + col];
+			//printf("mult = %f index = %d, to_mult = %f index = %d, old_val = %f index = %d, thread = %d, j = %d, i = %d, col = %d, Ay = %d\n", mult, (j*Ay + i), to_mult, (i*Ay + col), old_val, (j*Ay + col), col, j, i, col, Ay);
+			if ((j != i) && (A[j*Ay + i] != 0)) {
+				A[j*Ay + col] = old_val - mult * to_mult;
 			}
 		}
 
 		__syncthreads();
-
 	}
-
-	__syncthreads();
 }
 
 // Function that appends an identity matrix to the right of the current matrix
@@ -147,7 +146,7 @@ __device__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 			// row of C matrix
 			Aindex = (x / Bx) * Ax + count;
 			// column of C matrix
-			Bindex = (x % Bx) +  By * count;
+			Bindex = (x % Bx) + By * count;
 			prod = A[Aindex] * B[Bindex];
 			C[x] += prod;
 		}
@@ -178,7 +177,7 @@ int main()
 	double * MatB_d;
 	double * MatC_d;
 	double * MatD_d;
-	
+
 	cudaMalloc((void **)&MatA_d, Asize);
 	cudaMalloc((void **)&MatB_d, Bsize);
 	cudaMalloc((void **)&MatC_d, Csize);
@@ -203,13 +202,13 @@ int main()
 	cudaMemcpy(MatA_d, MatA, Asize, cudaMemcpyHostToDevice);
 
 	//for (x = 0; x < BarrSize; x++) {
-		//MatB[x] = x;
-		//printf("%d ", (int)MatB[x]);
-		//if (x != 0) {
-			//if ((x % BX) == (BX - 1)) {
-				//printf("\n");
-			//}
-		//}
+	//MatB[x] = x;
+	//printf("%d ", (int)MatB[x]);
+	//if (x != 0) {
+	//if ((x % BX) == (BX - 1)) {
+	//printf("\n");
+	//}
+	//}
 	//}
 	//printf("\n");
 	//cudaMemcpy(MatB_d, MatB, Bsize, cudaMemcpyHostToDevice);
@@ -222,7 +221,7 @@ int main()
 	for (x = 0; x < (2 * AarrSize); x++) {
 		printf("%d ", (int)MatD[x]);
 		if (x != 0) {
-			if ((x % (2 * AX)) == ((2 * AX)-1)) {
+			if ((x % (2 * AX)) == ((2 * AX) - 1)) {
 				printf("\n");
 			}
 		}
@@ -230,10 +229,10 @@ int main()
 	printf("\n");
 
 	// invert and print
-	MatrixInverse << <1, 2 * AX >> > (MatD_d, 2 * AX, AY);
+	MatrixInverse << <1, 2 * AX >> > (MatD_d, AY, 2 * AX);
 	cudaMemcpy(MatD, MatD_d, 2 * Asize, cudaMemcpyDeviceToHost);
 	for (x = 0; x < (2 * AarrSize); x++) {
-		printf("%d ", (int)MatD[x]);
+		printf("%f ", MatD[x]);
 		if (x != 0) {
 			if ((x % (2 * AX)) == ((2 * AX) - 1)) {
 				printf("\n");
@@ -248,12 +247,11 @@ int main()
 	for (x = 0; x < (AarrSize); x++) {
 		printf("%d ", (int)MatA[x]);
 		if (x != 0) {
-			if ((x % (AX)) == ((AX) - 1)) {
+			if ((x % (AX)) == ((AX)-1)) {
 				printf("\n");
 			}
 		}
 	}
 
-    return 0;
+	return 0;
 }
-
