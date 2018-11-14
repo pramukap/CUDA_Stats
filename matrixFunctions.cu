@@ -4,20 +4,20 @@
 
 // adds arrays A and B and stores the result in C 
 // assume all arrays have the same dimensions
-__device__ void MatrixAdd(double * A, double * B, double * C) {
+__global__ void MatrixAdd(double * A, double * B, double * C) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	C[x] = A[x] + B[x];
 }
 
 // performs scalar multiplication on matrix A and scalar X
 // stores result in B
-__device__ void MatrixSMul(double * A, double * B, double X) {
+__global__ void MatrixSMul(double * A, double * B, double X) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	B[x] = A[x] * X;
 }
 
 // transpose function, A is input, B is output, Ax and Ay are the dimensions of A
-__device__ void MatrixTranspose(double * A, double * B, int Ax, int Ay) {
+__global__ void MatrixTranspose(double * A, double * B, int Ax, int Ay) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int new_row, new_loc;
 	if (x == 0) {
@@ -36,8 +36,13 @@ __device__ void MatrixTranspose(double * A, double * B, int Ax, int Ay) {
 // use a thread for each element of the final C array.
 __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, int Bx, int By) {
 	if (Ax == By) {
+
 		// total array position
 		int x = blockIdx.x * blockDim.x + threadIdx.x;
+
+		// reset C array
+		C[x] = 0;
+		__syncthreads();
 
 		int count;
 		int Aindex, Bindex;
@@ -46,7 +51,7 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 			// row of C matrix
 			Aindex = (x / Bx) * Ax + count;
 			// column of C matrix
-			Bindex = (x % Bx) + By * count;
+			Bindex = (x % Bx) + Bx * count;
 			prod = A[Aindex] * B[Bindex];
 			C[x] += prod;
 		}
@@ -140,7 +145,38 @@ __global__ void ExtractInverse(double *src, double* dst, int num_row, int num_co
 
 }
 
+// takes an array of doubles and its dimensions as input
+// sets the array to (((A^t)(A))^-1)(A^t)
+void get_normal(double * A, int Ax, int Ay) {
+	int x;
+	double * MatB = (double *)malloc(Ax * Ay * sizeof(double));
+	double * MatC = (double *)malloc(Ax * Ax * sizeof(double));
+	double * MatD = (double *)malloc(2 * Ax * Ax * sizeof(double));
+	double * MatA_d;
+	double * MatB_d;
+	double * MatC_d;
+	double * MatD_d;
+	cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
+	cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
+	cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
+	cudaMalloc((void **)&MatD_d, 2 * Ax * Ax * sizeof(double));
+	cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
 
+	// B = Transpose(A)
+	MatrixTranspose << < Ay, Ax >> > (MatA_d, MatB_d, Ax, Ay);
+
+	// C = BA
+	MatrixMul << <Ax, Ax >> > (MatB_d, MatA_d, MatC_d, Ay, Ax, Ax, Ay);
+
+	// Invert C
+	MatrixAppendIdentity << <Ax, 2 * Ax >> > (MatC_d, MatD_d, Ax, Ax);
+	MatrixInverse << <1, 2 * Ax >> > (MatD_d, Ax, 2 * Ax);
+	ExtractInverse << <Ax, 2 * Ax >> > (MatD_d, MatC_d, Ax, Ax);
+
+	// A = CB
+	MatrixMul << <Ay, Ax >> > (MatC_d, MatB_d, MatA_d, Ax, Ax, Ay, Ax);
+	cudaMemcpy(A, MatA_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
+}
 
 
 
