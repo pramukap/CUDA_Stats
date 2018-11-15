@@ -1,7 +1,7 @@
 #include    "cuda_runtime.h"
 #include    "vec_kernels.cuh"
 
-#include    <cstddef>
+#include    "stddef.h"
 #include    <cmath>
 
 __global__

@@ -3,10 +3,14 @@
 #include    "vec_kernels.cuh"
 #include    "math.h" 
 
-#include    "stddef.h"
+#include    <cstddef>
+#include    <iostream>
 
 #define     BLOCKSIZE       1024
 #define     GRIDSIZE(d)     (((d) + ((BLOCKSIZE) - 1)) / (BLOCKSIZE))
+
+extern "C"
+{
 
 void    fit(double *X, double *y, double *theta, double lr, size_t n, size_t m, size_t n_iter) 
 {
@@ -22,16 +26,16 @@ void    fit(double *X, double *y, double *theta, double lr, size_t n, size_t m, 
     
     cudaMalloc(&thetad, sizeof(double) * n);
     cudaMemcpy(thetad, theta, sizeof(double) * n, cudaMemcpyHostToDevice);
-    MatrixTranspose<<<GRIDSIZE(m*n), BLOCKSIZE>>>(Xd, Xt, m, n);
+    MatrixTranspose<<<n, m>>>(Xd, Xt, m, n);
     cudaDeviceSynchronize();
 
     for (size_t i = 0; i < n_iter; i++) {
         double *z, *h, *g;
-        cudaMalloc(&z, sizeof(double) * n);
-        cudaMalloc(&h, sizeof(double) * n);
-        cudaMalloc(&g, sizeof(double) * m);
+        cudaMalloc(&z, sizeof(double) * m);
+        cudaMalloc(&h, sizeof(double) * m);
+        cudaMalloc(&g, sizeof(double) * n);
 
-        MatrixMul<<<GRIDSIZE(n), BLOCKSIZE>>>(X, theta, z, n, m, 1, m);
+        MatrixMul<<<n, n>>>(X, theta, z, n, m, 1, n);
         cudaDeviceSynchronize();
 
         vec_sigmoid<<<GRIDSIZE(n), BLOCKSIZE>>>(z, h, 1, m);
@@ -43,7 +47,7 @@ void    fit(double *X, double *y, double *theta, double lr, size_t n, size_t m, 
         vec_add<<<GRIDSIZE(n), BLOCKSIZE>>>(h, y, h, 1, m);
         cudaDeviceSynchronize();
 
-        MatrixMul<<<GRIDSIZE(n*m), BLOCKSIZE>>>(Xt, h, gradient, n, m, 1, m);
+        MatrixMul<<<m, m>>>(Xt, h, g, m, n, 1, m);
         cudaDeviceSynchronize();
 
         vec_scalar_mul<<<GRIDSIZE(n), BLOCKSIZE>>>(g, g, -lr / m, 1, m);
@@ -85,3 +89,7 @@ double*    predict_proba(double *X, double *theta, size_t m, size_t n)
     cudaFree(yd);
     return y;
 }
+
+}
+
+

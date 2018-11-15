@@ -2,7 +2,7 @@ import numpy as np
 import ctypes
 from ctypes import *
 
-LIBPATH = ''
+LIBPATH = './log_reg.so'
 
 class PyLogisticRegression:
     def __init__(self, lr=0.01, num_iter=100000, fit_intercept=True, verbose=False):
@@ -35,7 +35,7 @@ class PyLogisticRegression:
             if(self.verbose == True and i % 10000 == 0):
                 z = np.dot(X, self.theta)
                 h = self.__sigmoid(z)
-                print(f'loss: {self.__loss(h, y)} \t')
+                #print(f'loss: {self.__loss(h, y)} \t')
     
     def predict_prob(self, X):
         if self.fit_intercept:
@@ -77,4 +77,17 @@ class LogisticRegression:
     
     def predict(self, X, threshold=0.5):
         return self.predict_prob(X) >= threshold
-    
+
+if __name__ == "__main__":
+    lib = ctypes.CDLL(LIBPATH, mode=ctypes.RTLD_GLOBAL)
+    fit = lib.fit
+    # void    fit(double *X, double *y, double *theta, double lr, size_t n, size_t m, size_t n_iter)
+    fit.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), c_double, c_size_t, c_size_t, c_size_t]
+    mat = np.asarray([[i for i in range(1024)] for _ in range(1024)]).astype('float64')
+    y = np.asarray([i % 2 == 0 for i in range(1024)]).astype('float64')
+    theta = np.asarray([0 for _ in range(1024)]).astype('float64')
+    m_p = mat.ctypes.data_as(POINTER(c_double))
+    y_p = mat.ctypes.data_as(POINTER(c_double))
+    theta_p = mat.ctypes.data_as(POINTER(c_double))
+    fit(m_p, y_p, theta_p, 0.01, 1024, 1024, 1000)
+    print(theta[:24])
