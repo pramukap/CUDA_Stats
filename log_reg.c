@@ -1,18 +1,28 @@
 #include    "cuda_runtime.h"
 #include    "matrixFunctions.cuh"
 #include    "vec_kernels.cuh"
-#include    "math.h"
+#include    "math.h" 
 
 #include    "stddef.h"
 
-#define     BLOCKSIZE = 1024
+#define     BLOCKSIZE       1024
 #define     GRIDSIZE(d)     (((d) + ((BLOCKSIZE) - 1)) / (BLOCKSIZE))
 
 void    fit(double *X, double *y, double *theta, double lr, size_t n, size_t m, size_t n_iter) 
 {
-    double *Xt;
+    double *Xt, *Xd, *yd, *thetad;
+    
     cudaMalloc(&Xt, sizeof(double) * n * m);
-    MatrixTranspose<<<GRIDSIZE(m*n), BLOCKSIZE>>>(X, Xt, m, n);
+    
+    cudaMalloc(&Xd, sizeof(double) * n * m);
+    cudaMemcpy(Xd, X, sizeof(double) * n * m, cudaMemcpyHostToDevice);
+    
+    cudaMalloc(&yd, sizeof(double) * m);
+    cudaMemcpy(yd, y, sizeof(double) * m, cudaMemcpyHostToDevice);
+    
+    cudaMalloc(&thetad, sizeof(double) * n);
+    cudaMemcpy(thetad, theta, sizeof(double) * n, cudaMemcpyHostToDevice);
+    MatrixTranspose<<<GRIDSIZE(m*n), BLOCKSIZE>>>(Xd, Xt, m, n);
     cudaDeviceSynchronize();
 
     for (size_t i = 0; i < n_iter; i++) {
@@ -46,6 +56,12 @@ void    fit(double *X, double *y, double *theta, double lr, size_t n, size_t m, 
         cudaFree(h);
         cudaFree(g);
     }
+
+    cudaFree(Xd);
+    cudaFree(Xt);
+    cudaFree(yd);
+    cudaMemcpy(theta, thetad, sizeof(double) * n, cudaMemcpyDeviceToHost);
+    cudaFree(thetad);
 }
 
 double*    predict_proba(double *X, double *theta, size_t m, size_t n)
