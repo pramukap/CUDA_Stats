@@ -6,8 +6,8 @@
 // define matrix size
 #define AX 3
 #define AY 5
-#define BX 5
-#define BY 3
+#define BX 1
+#define BY 5
 
 
 // possible matrix struct, didnt use here
@@ -152,7 +152,7 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 			// row of C matrix
 			Aindex = (x / Bx) * Ax + count;
 			// column of C matrix
-			Bindex = (x % Bx) +  Bx * count;
+			Bindex = (x % Bx) + Bx * count;
 			prod = A[Aindex] * B[Bindex];
 			C[x] += prod;
 		}
@@ -160,9 +160,13 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 }
 
 // takes an array of doubles and its dimensions as input
-// sets the array to (((A^t)(A))^-1)(A^t)
-void get_normal(double * A, int Ax, int Ay) {
+// sets the array to (((A^t)(A))^-1)(A^t)B
+// where A is a matrix with Ay elements each having Ax features
+// and B is a vector containing Ay elements
+// C is a vector with Ax elements
+void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 	int x;
+	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
 	double * MatB = (double *)malloc(Ax * Ay * sizeof(double));
 	double * MatC = (double *)malloc(Ax * Ax * sizeof(double));
 	double * MatD = (double *)malloc(2 * Ax * Ax * sizeof(double));
@@ -170,11 +174,16 @@ void get_normal(double * A, int Ax, int Ay) {
 	double * MatB_d;
 	double * MatC_d;
 	double * MatD_d;
+	double * MatE_d;
+	double * Beta_d;
 	cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
 	cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
 	cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
 	cudaMalloc((void **)&MatD_d, 2 * Ax * Ax * sizeof(double));
+	cudaMalloc((void **)&MatE_d, Ay * sizeof(double));
+	cudaMalloc((void **)&Beta_d, Ax * sizeof(double));
 	cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(MatE_d, B, Ay * sizeof(double), cudaMemcpyHostToDevice);
 
 	// B = Transpose(A)
 	MatrixTranspose << < Ay, Ax >> > (MatA_d, MatB_d, Ax, Ay);
@@ -213,7 +222,7 @@ void get_normal(double * A, int Ax, int Ay) {
 	for (x = 0; x < (Ax * Ax); x++) {
 		printf("%f ", MatC[x]);
 		if (x != 0) {
-			if ((x % (Ax)) == ((Ax) - 1)) {
+			if ((x % (Ax)) == ((Ax)-1)) {
 				printf("\n");
 			}
 		}
@@ -221,18 +230,78 @@ void get_normal(double * A, int Ax, int Ay) {
 	printf("\n");
 
 	// A = CB
-	MatrixMul << <Ay, Ax >> > (MatC_d, MatB_d, MatA_d, Ax, Ax, Ay, Ax);
-	cudaMemcpy(A, MatA_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
+	MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA_d, Ax, Ax, Ay, Ax);
+	cudaMemcpy(MatA, MatA_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
+	printf(" (([At][A])^-1)[At] = \n");
+	for (x = 0; x < (Ax * Ay); x++) {
+		printf("%f ", MatA[x]);
+		if (x != 0) {
+			if ((x % Ay) == (Ay - 1)) {
+				printf("\n");
+			}
+		}
+	}
+	printf("\n");
+
+	// Beta = AE
+	MatrixMul << <1, Ax >> > (MatA_d, MatE_d, Beta_d, Ay, Ax, 1, Ay);
+
+	// return Beta
+	cudaMemcpy(C, Beta_d, Ax * sizeof(double), cudaMemcpyDeviceToHost);
+
+	// free resources
+	free(MatA);
+	free(MatB);
+	free(MatC);
+	free(MatD);
+	cudaFree(MatA_d);
+	cudaFree(MatB_d);
+	cudaFree(MatC_d);
+	cudaFree(MatD_d);
+	cudaFree(MatE_d);
+	cudaFree(Beta_d);
+}
+
+// Performs matrix multiplication on A and B
+// A a matrix of known values with Ay rows and Ax columns
+// B is the beta vector with Ax values
+// C is the output vector with Ay values
+void linreg(double * A, double * B, double * C, int Ax, int Ay) {
+	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
+	double * MatB = (double *)malloc(Ax * sizeof(double));
+	double * MatC = (double *)malloc(Ay * sizeof(double));
+	double * MatA_d;
+	double * MatB_d;
+	double * MatC_d;
+	cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
+	cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
+	cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
+	cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(MatB_d, B, Ax * sizeof(double), cudaMemcpyHostToDevice);
+
+	// C = AB
+	MatrixMul << <1, Ay >> > (MatA_d, MatB_d, MatC_d, Ax, Ay, 1, Ax);
+
+	// return C
+	cudaMemcpy(C, MatC_d, Ay * sizeof(double), cudaMemcpyDeviceToHost);
+
+	// free resources
+	free(MatA);
+	free(MatB);
+	free(MatC);
+	cudaFree(MatA_d);
+	cudaFree(MatB_d);
+	cudaFree(MatC_d);
 }
 
 int main()
 {
 	int Asize = AX * AY * sizeof(double);
 	int Bsize = BX * BY * sizeof(double);
-	int Csize = AX * BY * sizeof(double);
+	int Csize = AX * sizeof(double);
 	int AarrSize = AX * AY;
 	int BarrSize = BX * BY;
-	int CarrSize = BX * AY;
+	int CarrSize = AX;
 	double * MatA = (double *)malloc(Asize);
 	double * MatB = (double *)malloc(Bsize);
 	double * MatC = (double *)malloc(Csize);
@@ -241,19 +310,19 @@ int main()
 	double * MatB_d;
 	double * MatC_d;
 	double * MatD_d;
-	
+
 	cudaMalloc((void **)&MatA_d, Asize);
 	cudaMalloc((void **)&MatB_d, Bsize);
 	cudaMalloc((void **)&MatC_d, Csize);
 	cudaMalloc((void **)&MatD_d, 2 * Asize);
 
 	// set up array
-	double Mat[15] = { 1, 2, 3, 0, 1, 4, 5, 6, 0, 8, 4, 7, 1, 2, 5};
-	double Matb[15] = { 1, 0, 5, 8, 1, 2, 1, 6, 4, 2, 3, 4, 0, 7, 5 };
+	double Mat[15] = { 1, 2, 3, 0, 1, 4, 5, 6, 0, 8, 4, 7, 1, 2, 5 };
+	double Matb[5] = { 1, 2, 3, 4, 5 };
 	memcpy(MatA, Mat, 15 * sizeof(double));
-	memcpy(MatB, Matb, 15 * sizeof(double));
+	memcpy(MatB, Matb, 5 * sizeof(double));
 	cudaMemcpy(MatA_d, MatA, AX * AY * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(MatB_d, MatB, BY * BY * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(MatB_d, MatB, BX * BY * sizeof(double), cudaMemcpyHostToDevice);
 
 	// print initial array
 	int x;
@@ -268,19 +337,20 @@ int main()
 	}
 	printf("\n");
 
-	get_normal(MatA, AX, AY);
-
-	printf("Final Array = \n");
-	for (x = 0; x < AarrSize; x++) {
-		printf("%f ", MatA[x]);
-		if (x != 0) {
-			if ((x % AY) == (AY - 1)) {
-				printf("\n");
-			}
-		}
+	printf("[B] = \n");
+	for (x = 0; x < BarrSize; x++) {
+		printf("%f ", MatB[x]);
+		printf("\n");
 	}
 	printf("\n");
 
-    return 0;
-}
+	get_beta(MatA, MatB, MatC, AX, AY);
 
+	printf("Final Array = \n");
+	for (x = 0; x < CarrSize; x++) {
+		printf("%f\n", MatC[x]);
+	}
+	printf("\n");
+
+	return 0;
+}
