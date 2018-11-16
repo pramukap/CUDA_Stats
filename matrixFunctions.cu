@@ -150,88 +150,90 @@ __global__ void ExtractInverse(double *src, double* dst, int num_row, int num_co
 // where A is a matrix with Ay elements each having Ax features
 // and B is a vector containing Ay elements
 // C is a vector with Ax elements
-void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
-	int x;
-	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
-	double * MatB = (double *)malloc(Ax * Ay * sizeof(double));
-	double * MatC = (double *)malloc(Ax * Ax * sizeof(double));
-	double * MatD = (double *)malloc(2 * Ax * Ax * sizeof(double));
-	double * MatA_d;
-	double * MatB_d;
-	double * MatC_d;
-	double * MatD_d;
-	double * MatE_d;
-	double * Beta_d;
-	cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
-	cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
-	cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
-	cudaMalloc((void **)&MatD_d, 2 * Ax * Ax * sizeof(double));
-	cudaMalloc((void **)&MatE_d, Ay * sizeof(double));
-	cudaMalloc((void **)&Beta_d, Ax * sizeof(double));
-	cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(MatE_d, B, Ay * sizeof(double), cudaMemcpyHostToDevice);
+extern "C" {
+	void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
+		int x;
+		double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
+		double * MatB = (double *)malloc(Ax * Ay * sizeof(double));
+		double * MatC = (double *)malloc(Ax * Ax * sizeof(double));
+		double * MatD = (double *)malloc(2 * Ax * Ax * sizeof(double));
+		double * MatA_d;
+		double * MatB_d;
+		double * MatC_d;
+		double * MatD_d;
+		double * MatE_d;
+		double * Beta_d;
+		cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
+		cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
+		cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
+		cudaMalloc((void **)&MatD_d, 2 * Ax * Ax * sizeof(double));
+		cudaMalloc((void **)&MatE_d, Ay * sizeof(double));
+		cudaMalloc((void **)&Beta_d, Ax * sizeof(double));
+		cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
+		cudaMemcpy(MatE_d, B, Ay * sizeof(double), cudaMemcpyHostToDevice);
 
-	// B = Transpose(A)
-	MatrixTranspose << < Ay, Ax >> > (MatA_d, MatB_d, Ax, Ay);
+		// B = Transpose(A)
+		MatrixTranspose << < Ay, Ax >> > (MatA_d, MatB_d, Ax, Ay);
 
-	// C = BA
-	MatrixMul << <Ax, Ax >> > (MatB_d, MatA_d, MatC_d, Ay, Ax, Ax, Ay);
+		// C = BA
+		MatrixMul << <Ax, Ax >> > (MatB_d, MatA_d, MatC_d, Ay, Ax, Ax, Ay);
 
-	// Invert C
-	MatrixAppendIdentity << <Ax, 2 * Ax >> > (MatC_d, MatD_d, Ax, Ax);
-	MatrixInverse << <1, 2 * Ax >> > (MatD_d, Ax, 2 * Ax);
-	ExtractInverse << <Ax, 2 * Ax >> > (MatD_d, MatC_d, Ax, Ax);
+		// Invert C
+		MatrixAppendIdentity << <Ax, 2 * Ax >> > (MatC_d, MatD_d, Ax, Ax);
+		MatrixInverse << <1, 2 * Ax >> > (MatD_d, Ax, 2 * Ax);
+		ExtractInverse << <Ax, 2 * Ax >> > (MatD_d, MatC_d, Ax, Ax);
 
-	// A = CB
-	MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA_d, Ax, Ax, Ay, Ax);
+		// A = CB
+		MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA_d, Ax, Ax, Ay, Ax);
 
-	// Beta = AE
-	MatrixMul << <1, Ax >> > (MatA_d, MatE_d, Beta_d, Ay, Ax, 1, Ay);
+		// Beta = AE
+		MatrixMul << <1, Ax >> > (MatA_d, MatE_d, Beta_d, Ay, Ax, 1, Ay);
 
-	// return Beta
-	cudaMemcpy(C, Beta_d, Ax * sizeof(double), cudaMemcpyDeviceToHost);
+		// return Beta
+		cudaMemcpy(C, Beta_d, Ax * sizeof(double), cudaMemcpyDeviceToHost);
 
-	// free resources
-	free(MatA);
-	free(MatB);
-	free(MatC);
-	free(MatD);
-	cudaFree(MatA_d);
-	cudaFree(MatB_d);
-	cudaFree(MatC_d);
-	cudaFree(MatD_d);
-	cudaFree(MatE_d);
-	cudaFree(Beta_d);
-}
+		// free resources
+		free(MatA);
+		free(MatB);
+		free(MatC);
+		free(MatD);
+		cudaFree(MatA_d);
+		cudaFree(MatB_d);
+		cudaFree(MatC_d);
+		cudaFree(MatD_d);
+		cudaFree(MatE_d);
+		cudaFree(Beta_d);
+	}
 
-// Performs matrix multiplication on A and B
-// A a matrix of known values with Ay rows and Ax columns
-// B is the beta vector with Ax values
-// C is the output vector with Ay values
-void linreg(double * A, double * B, double * C, int Ax, int Ay) {
-	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
-	double * MatB = (double *)malloc(Ax * sizeof(double));
-	double * MatC = (double *)malloc(Ay * sizeof(double));
-	double * MatA_d;
-	double * MatB_d;
-	double * MatC_d;
-	cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
-	cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
-	cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
-	cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(MatB_d, B, Ax * sizeof(double), cudaMemcpyHostToDevice);
+	// Performs matrix multiplication on A and B
+	// A a matrix of known values with Ay rows and Ax columns
+	// B is the beta vector with Ax values
+	// C is the output vector with Ay values
+	void linreg(double * A, double * B, double * C, int Ax, int Ay) {
+		double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
+		double * MatB = (double *)malloc(Ax * sizeof(double));
+		double * MatC = (double *)malloc(Ay * sizeof(double));
+		double * MatA_d;
+		double * MatB_d;
+		double * MatC_d;
+		cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
+		cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
+		cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
+		cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
+		cudaMemcpy(MatB_d, B, Ax * sizeof(double), cudaMemcpyHostToDevice);
 
-	// C = AB
-	MatrixMul << <1, Ay >> > (MatA_d, MatB_d, MatC_d, Ax, Ay, 1, Ax);
+		// C = AB
+		MatrixMul << <1, Ay >> > (MatA_d, MatB_d, MatC_d, Ax, Ay, 1, Ax);
 
-	// return C
-	cudaMemcpy(C, MatC_d, Ay * sizeof(double), cudaMemcpyDeviceToHost);
+		// return C
+		cudaMemcpy(C, MatC_d, Ay * sizeof(double), cudaMemcpyDeviceToHost);
 
-	// free resources
-	free(MatA);
-	free(MatB);
-	free(MatC);
-	cudaFree(MatA_d);
-	cudaFree(MatB_d);
-	cudaFree(MatC_d);
+		// free resources
+		free(MatA);
+		free(MatB);
+		free(MatC);
+		cudaFree(MatA_d);
+		cudaFree(MatB_d);
+		cudaFree(MatC_d);
+	}
 }
