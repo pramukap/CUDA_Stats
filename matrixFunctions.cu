@@ -129,7 +129,6 @@ __global__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int 
 	else {
 		dst[i] = 0;
 	}
-
 }
 
 
@@ -141,8 +140,6 @@ __global__ void ExtractInverse(double *src, double* dst, int num_row, int num_co
     if (i % (2*num_col) >= num_col){
 		dst[(num_row*(i / (2 * num_row))) + (i % (2 * num_row) - num_row)] = src[i];
     }
-
-
 }
 
 // takes an array of doubles and its dimensions as input
@@ -187,6 +184,7 @@ extern "C" {
 		MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA_d, Ax, Ax, Ay, Ax);
 
 		// Beta = AE
+		// E is the known vector
 		MatrixMul << <1, Ax >> > (MatA_d, MatE_d, Beta_d, Ay, Ax, 1, Ay);
 
 		// return Beta
@@ -215,10 +213,11 @@ extern "C" {
 		double * MatC = (double *)malloc(Ay * sizeof(double));
 		double * MatA_d;
 		double * MatB_d;
+		int x;
 		double * MatC_d;
 		cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
-		cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
-		cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
+		cudaMalloc((void **)&MatB_d, Ax * sizeof(double));
+		cudaMalloc((void **)&MatC_d, Ay * sizeof(double));
 		cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
 		cudaMemcpy(MatB_d, B, Ax * sizeof(double), cudaMemcpyHostToDevice);
 
