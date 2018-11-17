@@ -2,18 +2,17 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
-#include "house.h"
+#include "house_med.h"
 
 // define matrix size
-#define AX 18
-#define AY 200
+#define AX 8
+#define AY 1000
 #define BX 1
-#define BY 200
+#define BY 1000
 
 
 // possible matrix struct, didnt use here
 struct Matrix {
-
 	int col;
 	int row;
 	double * data;
@@ -59,16 +58,31 @@ __global__ void MatrixInverse(double *A, int Ax, int Ay) {
 		__syncthreads();
 
 		for (int j = 0; j < Ax; j++) {
-			mult = A[j*Ay + i];
-			to_mult = A[i*Ay + col];
-			old_val = A[j*Ay + col];
-			//printf("mult = %f index = %d, to_mult = %f index = %d, old_val = %f index = %d, thread = %d, j = %d, i = %d, col = %d, Ay = %d\n", mult, (j*Ay + i), to_mult, (i*Ay + col), old_val, (j*Ay + col), col, j, i, col, Ay);
-			if ((j != i) && (A[j*Ay + i] != 0)) {
+			mult = A[j*Ay + i]; // current row, pivot column
+			to_mult = A[i*Ay + col]; //  pivot row, current column
+			old_val = A[j*Ay + col]; // current row, current column
+			if ((j != i)) {
 				A[j*Ay + col] = old_val - mult * to_mult;
 			}
+			//if (col == 20) {
+				//printf("mult = %fl index = %d, to_mult = %fl index = %d, old_val = %fl index = %d, j = %d, i = %d, col = %d, new = %fl\n", mult, (j*Ay + i), to_mult, (i*Ay + col), old_val, (j*Ay + col), j, i, col, A[j*Ay + col]);
+			//}
 		}
 
 		__syncthreads();
+	}
+
+	if (col == 0) {
+		printf("Finished inversion = \n");
+		for (i = 0; i < Ax * Ay; i++) {
+			printf("%fl ", A[i]);
+			if (i != 0) {
+				if ((i % Ay) == (Ay - 1)) {
+					printf("\n");
+				}
+			}
+		}
+		printf("\n");
 	}
 }
 
@@ -155,6 +169,7 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 			Bindex = (x % Bx) +  Bx * count;
 			prod = A[Aindex] * B[Bindex];
 			C[x] += prod;
+			//printf("Aindex = %d, Bindex = %d, prod = %f, x = %d, C[x] = %f\n", Aindex, Bindex, prod, x, C[x]);
 		}
 	}
 }
@@ -193,16 +208,16 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 	// B = Transpose(A)
 	MatrixTranspose << < Ay, Ax >> > (MatA_d, MatB_d, Ax, Ay);
 	cudaMemcpy(MatB, MatB_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
-	printf("[At] = \n");
-	for (x = 0; x < (Ax * Ay); x++) {
-		printf("%f ", MatB[x]);
-		if (x != 0) {
-			if ((x % Ay) == (Ay - 1)) {
-				printf("\n");
-			}
-		}
-	}
-	printf("\n");
+	//printf("[At] = \n");
+	//for (x = 0; x < (Ax * Ay); x++) {
+		//printf("%f ", MatB[x]);
+		//if (x != 0) {
+			//if ((x % Ay) == (Ay - 1)) {
+				//printf("\n");
+			//}
+		//}
+	//}
+	//printf("\n");
 
 	// C = BA
 	MatrixMul << <Ax, Ax >> > (MatB_d, MatA_d, MatC_d, Ay, Ax, Ax, Ay);
@@ -252,6 +267,16 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 	// A = CB
 	MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA_d, Ax, Ax, Ay, Ax);
 	cudaMemcpy(MatA, MatA_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
+	//printf("Inverse * T = \n");
+	//for (x = 0; x < (Ax * Ay); x++) {
+		//printf("%f ", MatA[x]);
+		//if (x != 0) {
+			//if ((x % Ay) == (Ay - 1)) {
+				//printf("\n");
+			//}
+		//}
+	//}
+	//printf("\n");
 
 	// Beta = AE
 	// E is the known vector
@@ -283,15 +308,16 @@ void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 	double * MatC = (double *)malloc(Ay * sizeof(double));
 	double * MatA_d;
 	double * MatB_d;
+	int x;
 	double * MatC_d;
 	cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
-	cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
-	cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
+	cudaMalloc((void **)&MatB_d, Ax * sizeof(double));
+	cudaMalloc((void **)&MatC_d, Ay * sizeof(double));
 	cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
 	cudaMemcpy(MatB_d, B, Ax * sizeof(double), cudaMemcpyHostToDevice);
 
 	// C = AB
-	MatrixMul << <1, Ay >> > (MatA_d, MatB_d, MatC_d, Ax, Ay, 1, Ax);
+	MatrixMul <<<1, Ay >> > (MatA_d, MatB_d, MatC_d, Ax, Ay, 1, Ax);
 
 	// return C
 	cudaMemcpy(C, MatC_d, Ay * sizeof(double), cudaMemcpyDeviceToHost);
@@ -322,37 +348,10 @@ int main()
 	double * MatB_d;
 	double * MatC_d;
 	double * MatD_d;
-	
-	cudaMalloc((void **)&MatA_d, Asize);
-	cudaMalloc((void **)&MatB_d, Bsize);
-	cudaMalloc((void **)&MatC_d, Csize);
-	//cudaMalloc((void **)&MatD_d, 2 * Asize);
 
-	// set up array
-	//double Mat[15] = { 1, 2, 3, 0, 1, 4, 5, 6, 0, 8, 4, 7, 1, 2, 5};
-	//double Matb[5] = { 1, 2, 3, 4, 5 };
-	memcpy(MatA, houses,  Asize);
-	memcpy(MatB, prices, Bsize);
-	memcpy(MatD, test_houses, test_size * AX * sizeof(double));
-
-	int count;
-	int arrcount;
-	for (count = 0; count < AarrSize; count++) {
-		arrcount = count % 18;
-		if (arrcount == 2 || arrcount == 9 || arrcount == 10) {
-			MatA[count] = count % 5;
-		}
-	}
-	arrcount = 0;
-	for (count = 0; count < test_size; count++) {
-		arrcount = count % 18;
-		if (arrcount == 2 || arrcount == 9 || arrcount == 10) {
-			MatD[count] = count % 5;
-		}
-	}
-
-	//cudaMemcpy(MatA_d, MatA, AX * AY * sizeof(double), cudaMemcpyHostToDevice);
-	//cudaMemcpy(MatB_d, MatB, BX * BY * sizeof(double), cudaMemcpyHostToDevice);
+	memcpy(MatA, houses_m,  Asize);
+	memcpy(MatB, prices_m, Bsize);
+	memcpy(MatD, test_houses_m, test_size * AX * sizeof(double));
 
 	// print initial array
 	int x;
@@ -367,6 +366,7 @@ int main()
 	}
 	printf("\n");
 
+	// print known value vector
 	printf("[B] = \n");
 	for (x = 0; x < BarrSize; x++) {
 		printf("%f ", MatB[x]);
@@ -374,24 +374,32 @@ int main()
 	}
 	printf("\n");
 
+	// get the beta vector
 	get_beta(MatA, MatB, MatC, AX, AY);
-
 	printf("Beta = \n");
 	for (x = 0; x < AX; x++) {
 		printf("%f\n", MatC[x]);
 	}
 	printf("\n");
 
+	// apply the beta vector to the input data
 	linreg(MatD, MatC, MatE, AX, test_size);
-
 	printf("Test Results = \n");
 	for (x = 0; x < test_size; x++) {
-		printf("%f vs %f\n", MatE[x], real_prices[x]);
+		printf("%f vs %f\n", MatE[x], real_prices_m[x]);
 	}
 	printf("\n");
 
+	// wait for input to close
 	printf("End of test\n");
 	getchar();
+
+	// free resources
+	free(MatA);
+	free(MatB);
+	free(MatC);
+	free(MatD);
+	free(MatE);
 
     return 0;
 }
