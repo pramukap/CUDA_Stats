@@ -2,7 +2,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
-#include "house.h"
+#include "house_m.h"
 
 // define matrix size
 #define AX 18
@@ -159,12 +159,22 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 	}
 }
 
+__global__ void AddLambdaToDiagonal(double * A, double lambda, int Ax, int Ay) {
+		int x = blockIdx.x * blockDim.x + threadIdx.x;
+
+		int my_row_pivot_index = (Ax * (x/Ax)) + (x/Ax);
+
+		if  (my_row_pivot_index == x) {
+			A[x] = A[x] + lambda;
+		}
+}
+
 // takes an array of doubles and its dimensions as input
 // sets the array to (((A^t)(A))^-1)(A^t)B
 // where A is a matrix with Ay elements each having Ax features
 // and B is a vector containing Ay elements
 // C is a vector with Ax elements
-void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
+void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda) {
 	int x;
 	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
 	double * MatB = (double *)malloc(Ax * Ay * sizeof(double));
@@ -218,6 +228,9 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 		}
 	}
 	printf("\n");
+
+	// Regularization C = C - lambda*I
+	AddLambdaToDiagonal << <Ax, Ax >> > (MatC_d, lambda, Ax, Ax);
 
 	// Invert C
 	MatrixAppendIdentity << <Ax, 2 * Ax >> > (MatC_d, MatD_d, Ax, Ax);
@@ -374,7 +387,7 @@ int main()
 	}
 	printf("\n");
 
-	get_beta(MatA, MatB, MatC, AX, AY);
+	get_beta(MatA, MatB, MatC, AX, AY, 0);
 
 	printf("Beta = \n");
 	for (x = 0; x < AX; x++) {
