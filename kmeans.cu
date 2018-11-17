@@ -1,3 +1,7 @@
+#include "kmeansHelper.cu"
+#include "cuda_runtime.h"
+#include <stdio.h>
+
 
 void kmeans(double* data, int m, int n, int k, double* centroids, int iterations){
     
