@@ -15,6 +15,8 @@
 // each thread corresponds to a particular column
 // perform division on row to turn leading nonzero into a 1
 // perform elimination on all other rows to make pivot column 0s
+// O(Ax^2) time
+// O(Ay) work
 __global__ void MatrixInverse(double *A, int Ax, int Ay) {
 
 	int col = blockIdx.x * blockDim.x + threadIdx.x;
@@ -76,6 +78,8 @@ __global__ void MatrixInverse(double *A, int Ax, int Ay) {
 // keeping new matrix in row major form
 // constant time in parallel
 // assume that dst has 2*N*N = 2*len(src) allocated
+// O(1) time
+// O(Ax * Ay) work
 __global__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int num_col) {
 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -92,6 +96,9 @@ __global__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int 
 
 }
 
+// Extracts the inverse matrix from the identity matrix
+// O(1) time
+// O(Ax * Ay) work
 __global__ void ExtractInverse(double *src, double* dst, int num_row, int num_col) {
 
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -99,12 +106,12 @@ __global__ void ExtractInverse(double *src, double* dst, int num_row, int num_co
 	if (i % (2 * num_col) >= num_col) {
 		dst[(num_row*(i / (2 * num_row))) + (i % (2 * num_row) - num_row)] = src[i];
 	}
-
-
 }
 
 // adds arrays A and B and stores the result in C 
 // assume all arrays have the same dimensions
+// O(1) time
+// O(Ax * Ay) work
 __global__ void MatrixAdd(double * A, double * B, double * C) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	C[x] = A[x] + B[x];
@@ -112,12 +119,16 @@ __global__ void MatrixAdd(double * A, double * B, double * C) {
 
 // performs scalar multiplication on matrix A and scalar X
 // stores result in B
+// O(1) time
+// O(Ax * Ay) work
 __device__ void MatrixSMul(double * A, double * B, double scalar) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	B[x] = A[x] * scalar;
 }
 
-// transpose function, A is input, B is output, Ax and Ay are the dimensions of A
+// Transpose function, A is input, B is output, Ax and Ay are the dimensions of A
+// O(1) time
+// O(Ax * Ay)
 __global__ void MatrixTranspose(double * A, double * B, int Ax, int Ay) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int new_row, new_loc;
@@ -132,9 +143,11 @@ __global__ void MatrixTranspose(double * A, double * B, int Ax, int Ay) {
 	B[new_loc] = A[x];
 }
 
-// multiplies the matrices A and B and stores them into C
+// Multiplies the matrices A and B and stores them into C
 // Ax, Ay, Bx, By are the dimensions
-// use a thread for each element of the final C array.
+// Use a thread for each element of the final C array
+// O(Ax) time
+// O(Bx * Ay) work
 __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, int Bx, int By) {
 	if (Ax == By) {
 
@@ -160,6 +173,9 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 	}
 }
 
+// Adds the value lambda to the diagonal of the input matrix
+// O(1) time
+// O(Ax * Ay) work
 __global__ void AddLambdaToDiagonal(double * A, double lambda, int Ax, int Ay) {
 		int x = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -174,6 +190,8 @@ __global__ void AddLambdaToDiagonal(double * A, double lambda, int Ax, int Ay) {
 // keeping new matrix in row major form
 // constant time in parallel
 // assume that dst has M x (N + 1)
+// O(1) time
+// O(Ax * Ay) work
 __global__ void AppendOne(double* src, double* dst, int num_row, int num_col) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	
@@ -191,6 +209,8 @@ __global__ void AppendOne(double* src, double* dst, int num_row, int num_col) {
 // where A is a matrix with Ay elements each having Ax features
 // and B is a vector containing Ay elements
 // C is a vector with Ax elements
+// O(Ay) time
+// O(Ax * Ay) work
 void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda) {
 	int x;
 	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
@@ -221,13 +241,13 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	cudaMemcpy(MatE_d, B, Ay * sizeof(double), cudaMemcpyHostToDevice);
 
 	// Append 1s A
-	AppendOne << < Ax, Ay >> > (MatA_d, MatA1_d, Ay, Ax);
+	AppendOne << < Ax, Ay >> > (MatA_d, MatA1_d, Ay, Ax); // O(1)
 
 	// Add new column
 	Ax++;
 
 	// B = Transpose(A)
-	MatrixTranspose << < Ax, Ay >> > (MatA1_d, MatB_d, Ax, Ay);
+	MatrixTranspose << < Ax, Ay >> > (MatA1_d, MatB_d, Ax, Ay); // O(1)
 	cudaMemcpy(MatB, MatB_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
 	//printf("[At] = \n");
 	//for (x = 0; x < (Ax * Ay); x++) {
@@ -241,7 +261,7 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	//printf("\n");
 
 	// C = BA
-	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC_d, Ay, Ax, Ax, Ay);
+	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC_d, Ay, Ax, Ax, Ay); // O(Ay)
 	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC2_d, Ay, Ax, Ax, Ay);
 	cudaMemcpy(MatC, MatC_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
 	printf(" [At][A] = \n");
@@ -256,12 +276,13 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	printf("\n");
 
 	// Regularization C = C - lambda*I
-	AddLambdaToDiagonal << <Ax, Ax >> > (MatC_d, lambda, Ax, Ax);
+
+	AddLambdaToDiagonal << <Ax, Ax >> > (MatC_d, lambda, Ax, Ax); // O(1)
 
 	// Invert C
-	MatrixAppendIdentity << <Ax, 2 * Ax >> > (MatC_d, MatD_d, Ax, Ax);
-	MatrixInverse << <1, 2 * Ax >> > (MatD_d, Ax, 2 * Ax);
-	ExtractInverse << <Ax, 2 * Ax >> > (MatD_d, MatC_d, Ax, Ax);
+	MatrixAppendIdentity << <Ax, 2 * Ax >> > (MatC_d, MatD_d, Ax, Ax); // O(1)
+	MatrixInverse << <1, 2 * Ax >> > (MatD_d, Ax, 2 * Ax); // O(Ax)
+	ExtractInverse << <Ax, 2 * Ax >> > (MatD_d, MatC_d, Ax, Ax); // O(1)
 	cudaMemcpy(MatC, MatC_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
 	printf(" ([At][A])^-1 = \n");
 	for (x = 0; x < (Ax * Ax); x++) {
@@ -275,7 +296,7 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	printf("\n");
 
 	// check
-	MatrixMul << <Ax, Ax >> > (MatC_d, MatC2_d, MatC3_d, Ax, Ax, Ax, Ax);
+	MatrixMul << <Ax, Ax >> > (MatC_d, MatC2_d, MatC3_d, Ax, Ax, Ax, Ax); // O(Ax)
 	cudaMemcpy(MatC2, MatC3_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
 	printf(" should be identity = \n");
 	for (x = 0; x < (Ax * Ax); x++) {
@@ -289,7 +310,7 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	printf("\n");
 
 	// A = CB
-	MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA1_d, Ax, Ax, Ay, Ax);
+	MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA1_d, Ax, Ax, Ay, Ax); // O(Ax)
 	cudaMemcpy(MatA, MatA_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
 	//printf("Inverse * T = \n");
 	//for (x = 0; x < (Ax * Ay); x++) {
@@ -304,7 +325,7 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 
 	// Beta = AE
 	// E is the known vector
-	MatrixMul << <1, Ax >> > (MatA1_d, MatE_d, Beta_d, Ay, Ax, 1, Ay);
+	MatrixMul << <1, Ax >> > (MatA1_d, MatE_d, Beta_d, Ay, Ax, 1, Ay); // O(Ay)
 
 	// return Beta
 	cudaMemcpy(C, Beta_d, Ax * sizeof(double), cudaMemcpyDeviceToHost);
@@ -328,6 +349,8 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 // A a matrix of known values with Ay rows and Ax columns
 // B is the beta vector with Ax values
 // C is the output vector with Ay values
+// O(Ax) time
+// O(Ax * Ay) work
 void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
 	double * MatA1 = (double *)malloc((Ax + 1) * Ay * sizeof(double));
@@ -346,13 +369,13 @@ void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 	cudaMemcpy(MatB_d, B, (Ax + 1) * sizeof(double), cudaMemcpyHostToDevice);
 
 	// Append 1s to A
-	AppendOne << <Ax, Ay >> > (MatA_d, MatA1_d, Ay, Ax);
+	AppendOne << <Ax, Ay >> > (MatA_d, MatA1_d, Ay, Ax); // O(1)
 
 	// Add a column
 	Ax++;
 
 	// C = AB
-	MatrixMul <<<1, Ay >> > (MatA1_d, MatB_d, MatC_d, Ax, Ay, 1, Ax);
+	MatrixMul <<<1, Ay >> > (MatA1_d, MatB_d, MatC_d, Ax, Ay, 1, Ax); // O(Ax)
 
 	// return C
 	cudaMemcpy(C, MatC_d, Ay * sizeof(double), cudaMemcpyDeviceToHost);
@@ -424,8 +447,8 @@ int main()
 	int to_add;
 	int add_index;
 	int out_of_range = 0;
-	int error_hist[67];
-	for (x = 0; x < 67; x++) {
+	int error_hist[60];
+	for (x = 0; x < 60; x++) {
 		error_hist[x] = 0;
 	}
 	double sum = 0;
@@ -436,7 +459,7 @@ int main()
 		if (MatE[x] > real_prices_m[x]) {
 			to_add = (MatE[x] - real_prices_m[x]);
 			add_index = (int)(to_add / 10000);
-			if (add_index >= 67) {
+			if (add_index >= 60) {
 				out_of_range++;
 			}
 			else {
@@ -448,7 +471,7 @@ int main()
 		else {
 			to_add = (real_prices_m[x] - MatE[x]);
 			add_index = (int)(to_add / 10000);
-			if (add_index >= 67) {
+			if (add_index >= 60) {
 				out_of_range++;
 			}
 			else {
@@ -463,10 +486,10 @@ int main()
 	sum = sum / test_size;
 	sum_s = sum_s / test_size;
 
-	for (x = 0; x < 67; x++) {
+	for (x = 0; x < 60; x++) {
 		printf("Errors between %d0000 and %d0000: %d\n", x, x + 1, error_hist[x]);
 	}
-	printf("Errors over 670000: %d\n", out_of_range);
+	printf("Errors over 600000: %d\n", out_of_range);
 	printf("\n");
 
 	printf("Average Error = %f\n\n", sum, sum_s);
