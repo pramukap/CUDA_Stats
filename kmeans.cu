@@ -22,7 +22,7 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
     init_labels<<<n, 1>>>(labels, k);
     // Update Means Step
-    init_zero<<<k, 1>>>(counts);
+    init_zeros<<<k, 1>>>(counts);
     findNewCentroids<<<k, n>>>(data_d, centroids_d, labels, m, n, k, counts);
     divide_by_count<<<k, n>>>(centroids_d, counts, n, k);
 
@@ -43,7 +43,7 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
         }            
         
         // Update Means Step
-        init_zero<<<k, 1>>>(counts);
+        init_zeros<<<k, 1>>>(counts);
 
         findNewCentroids<<<k, n>>>(data_d, centroids_d, labels, m, n, k, counts);
 
@@ -51,4 +51,8 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
     }
 
+}
+
+int main(){
+    return 0;
 }

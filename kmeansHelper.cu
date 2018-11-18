@@ -65,6 +65,8 @@ __global__ void assignClass(double *distances, int* labels, int k, int i){
 }
 
 // PROVIDED BY NVIDIA
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
+#else
 __device__ double atomicAdd(double* address, double val)
 {
     unsigned long long int* address_as_ull =
@@ -78,6 +80,7 @@ __device__ double atomicAdd(double* address, double val)
     } while (assumed != old);
     return __longlong_as_double(old);
 }
+#endif
 
 // counts has to be initialized to zeros
 __global__ void findNewCentroids(double *points, double *centroids, int* classlabels, int m, int n, int k, int* counts){
@@ -102,6 +105,12 @@ __global__ void divide_by_count(double *centroids, int *count, int n, int k){
 
 
 __global__ void init_zeros(double *array){
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    array[idx] = 0;
+
+}
+__global__ void init_zeros(int *array){
 
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     array[idx] = 0;
