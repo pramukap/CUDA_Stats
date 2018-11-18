@@ -21,14 +21,14 @@
 // requires centroid to be init
 __global__ void subtractPointFromMeans(double *points, double *centroids, int m, int n, int k, int point) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int f = x % k;
+    int f = x % n;
     centroids[x] = centroids[x] - points[point * n + f];
 }
 
 // adding back the subtraction to get the original k means
 __global__ void addPointToMeans(double *points, double *centroids, int m, int n, int k, int point) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int f = x % k;
+    int f = x % n;
     centroids[x] = centroids[x] + points[point * n + f];
 }
 
@@ -38,7 +38,7 @@ __global__ void getDistances(double *vectors, double *distances, int k, int n){
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int distance = 0;
     for(int i = 0; i < n; i++){
-        distance += vectors[x*n + i];
+        distance += vectors[x*n + i]*vectors[x*n + i];
     }
     distances[x] = distance;
 }
@@ -90,8 +90,9 @@ __global__ void findNewCentroids(double *points, double *centroids, int* classla
 
     atomicAdd(counts+label, 1);
     
+//    printf("Thread %d is adding %f to feature %d of class %d\n", x, points[x], x%n, label);
     
-    atomicAdd(centroids+k * label + x % n, points[x]);
+    atomicAdd(centroids+ n*label + x % n, points[x]);
 
 }
 
@@ -99,7 +100,7 @@ __global__ void divide_by_count(double *centroids, int *count, int n, int k){
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
 
-    centroids[x] = centroids[x] / (count[x / n] * n);
+    centroids[x] = n*centroids[x] / (count[x / n] );
 
 }
 
