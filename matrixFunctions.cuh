@@ -9,6 +9,8 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 __global__ void MatrixInverse(double *A, int Ax, int Ay);
 __global__ void MatrixAppendIdentity(double* src, double* dst, int num_row, int num_col);
 __global__ void ExtractInverse(double *src, double* dst, int num_row, int num_col);
+__global__ void AppendOne(double* src, double* dst, int num_row, int num_col);
+__global__ void AddLambdaToDiagonal(double * A, double lambda, int Ax, int Ay);
 
-void get_beta(double * A, double * B, double * C, int Ax, int Ay);
+void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda);
 void linreg(double * A, double * B, double * C, int Ax, int Ay);
