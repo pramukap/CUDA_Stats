@@ -53,6 +53,23 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
 }
 
+void run_small_kmeans_test(){
+
+
+    int m = 12;
+    int n = 2;
+    int k = 3;
+    int iterations = 10;
+
+    double* data = {0, 1, 1, 0, 1, 1, 5, 6, 6, 7, 5, 5, 0, 8, 1, 9, 0, 9};
+    double* centroids;
+
+    kmeans(data, m, n, k, centroids, iterations);
+
+}
+
 int main(){
-    return 0;
+    
+   run_small_kmeans_test(); 
+   return 0;
 }
