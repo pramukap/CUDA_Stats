@@ -57,12 +57,12 @@ __global__ void assignClass(double *distances, double* labels, int k, int i){
 }
 
 // counts has to be initialized to zeros
-__global__ void findNewCentroids(double *points, double *centroids, double* classlabels, int m, int n, int k, int* counts){
+__global__ void findNewCentroids(double *points, double *centroids, int* classlabels, int m, int n, int k, int* counts){
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int label = classlabels[x / n];
 
-    atomicAdd(counts+label, 1)
+    atomicAdd(counts+label, 1);
     atomicAdd(centroids+k * label + x % n, points[x]);
 
 }

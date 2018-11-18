@@ -43,7 +43,7 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
         findNewCentroids<<<k, n>>>(points, centroids, labels, m, n, k, counts);
 
-        divide_by_count<<<k, n>>>(centroids, count, n, k);
+        divide_by_count<<<k, n>>>(centroids, counts, n, k);
 
     }
 
