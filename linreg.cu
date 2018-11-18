@@ -426,7 +426,7 @@ int main()
 	printf("\n");
 
 	// get the beta vector
-	get_beta(MatA, MatB, MatC, AX, AY, 0.1);
+	get_beta(MatA, MatB, MatC, AX, AY, 0.0655);
 	printf("Beta = \n");
 	for (x = 0; x < (AX + 1); x++) {
 		printf("%f\n", MatC[x]);
@@ -435,14 +435,58 @@ int main()
 
 	// apply the beta vector to the input data
 	linreg(MatD, MatC, MatE, AX, test_size);
+	int to_add;
+	int add_index;
+	int out_of_range = 0;
+	int error_hist[67];
+	for (x = 0; x < 67; x++) {
+		error_hist[x] = 0;
+	}
+	double sum = 0;
+	double sum_s = 0;
 	printf("Test Results = \n");
 	for (x = 0; x < test_size; x++) {
 		printf("%f vs %f\n", MatE[x], real_prices_m[x]);
+		if (MatE[x] > real_prices_m[x]) {
+			to_add = (MatE[x] - real_prices_m[x]);
+			add_index = (int)(to_add / 10000);
+			if (add_index >= 67) {
+				out_of_range++;
+			}
+			else {
+				error_hist[add_index]++;
+			}
+			sum += to_add;
+			sum_s += (MatE[x] - real_prices_m[x]) * (MatE[x] - real_prices_m[x]);
+		}
+		else {
+			to_add = (real_prices_m[x] - MatE[x]);
+			add_index = (int)(to_add / 10000);
+			if (add_index >= 67) {
+				out_of_range++;
+			}
+			else {
+				error_hist[add_index]++;
+			}
+			sum += to_add;
+			sum_s += (real_prices_m[x] - MatE[x]) * (real_prices_m[x] - MatE[x]);
+		}
 	}
 	printf("\n");
 
+	sum = sum / test_size;
+	sum_s = sum_s / test_size;
+
+	for (x = 0; x < 67; x++) {
+		printf("Errors between %d0000 and %d0000: %d\n", x, x + 1, error_hist[x]);
+	}
+	printf("Errors over 670000: %d\n", out_of_range);
+	printf("\n");
+
+	printf("Average Error = %f\n\n", sum, sum_s);
+
 	// wait for input to close
-	printf("End of test\n");
+	printf("End of test. Press Enter to close...\n");
 	getchar();
 
 	// free resources
