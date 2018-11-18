@@ -13,7 +13,7 @@ __global__ void assignClasses(double *data, double *means, int m, int n, int k, 
 		for(int i = 0; i < n; i++){
 			distance += (data[idx*n + i]-means[ki*n + i])*(data[idx*n + i]-means[ki*n + i]);
 		}
-		if ki == 0 || distance > distances[idx]{
+		if (ki == 0 || distance > distances[idx]){
 			labels[idx] = ki;
 			distances[idx] = distance;
 		}

@@ -158,7 +158,7 @@ void run_uni_data_test(){
 
     printConfusionMatrix(labels, results);
 }
-
+/*
 
 
 int main(){
@@ -166,4 +166,4 @@ int main(){
    run_small_kmeans_test();
    run_uni_data_test();
    return 0;
-}
+} */
