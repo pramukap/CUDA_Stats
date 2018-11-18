@@ -10,3 +10,4 @@ __global__ void assignClass(double *distances, int* labels, int k, int i);
 __global__ void findNewCentroids(double *points, double *centroids, int* classlabels, int m, int n, int k, int* counts);
 __global__ void divide_by_count(double *centroids, int *count, int n, int k);
 __global__ void init_zeros(double *array);
+__global__ void init_labels(int *labels, int k);

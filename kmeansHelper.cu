@@ -43,6 +43,13 @@ __global__ void getDistances(double *vectors, double *distances, int k, int n){
     distances[x] = distance;
 }
 
+__global__ void init_labels(int* labels, int k){
+    
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    labels[x] = x % k;
+
+}
+
 __global__ void assignClass(double *distances, int* labels, int k, int i){
 
     int min = distances[0];

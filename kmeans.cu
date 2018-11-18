@@ -19,8 +19,12 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
     cudaMalloc((void**)&distances, k*sizeof(double));
 
     cudaMemcpy(data_d, data, m*n*sizeof(double), cudaMemcpyHostToDevice);
-    
-    init_zero<<<k, n>>>(centroids);
+
+    init_labels<<<n, 1>>>(labels, k);
+    // Update Means Step
+    init_zero<<<k, 1>>>(counts);
+    findNewCentroids<<<k, n>>>(data_d, centroids_d, labels, m, n, k, counts);
+    divide_by_count<<<k, n>>>(centroids_d, counts, n, k);
 
     // Set number of iterations
     for(int step__ = 0; step__ < iterations; step__++){ 
