@@ -114,6 +114,33 @@ void run_small_kmeans_test(){
     kmeans(data, m, n, k, centroids, iterations);
 
 }
+void printConfusion(int *actual, int*expect){
+
+    int tp = 0;
+    int fp = 0;
+    int fn = 0;
+    int tn = 0;
+
+    for(int i = 0; i < 777; i++){
+        if(actual[i] == expect[i]){
+            if(actual[i] == 1){
+                tp++;
+            } else {
+                tn++;
+            }
+        } else {
+            if (actual[i] == 1){
+                fp++;
+            }else{
+                fn++;
+            }
+        }
+    }
+    printf("\n");
+    printf("TP: %d\nFP: %d\nFN: %d\nTN: %d\n", tp, fp, fn, tn);
+
+
+}
 
 void run_uni_data_test(){
     
@@ -134,20 +161,14 @@ void run_uni_data_test(){
     int *labels = (int *) malloc(sizeof(int) * m);
     kmeans_classify(centroids, data, labels, m, n, k);
 
-    int sum = 0;
-    for(int i = 0; i < m; i++){
-        printf("%d\n", labels[i]);
-        sum += labels[i];
-    }
-    printf("SUM: %d", sum);
-
-
+    printConfusion(labels, results);
 }
+
 
 
 int main(){
     
-   //run_small_kmeans_test(); 
+   run_small_kmeans_test(); 
    run_uni_data_test();
    return 0;
 }
