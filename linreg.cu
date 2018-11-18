@@ -174,6 +174,22 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 	}
 }
 
+// Function that appends a column of 1s to a matrix
+// keeping new matrix in row major form
+// constant time in parallel
+// assume that dst has M x (N + 1)
+__global__ void AppendOne(double* src, double* dst, int num_row, int num_col) {
+	int x = blockIdx.x * blockDim.x + threadIdx.x;
+	
+	int new_index = x + (x / num_col) + 1;
+
+	dst[new_index] = src[x];
+
+	if (new_index % (num_col + 1) == 1) {
+		dst[new_index - 1] = 1;
+	}
+}
+
 // takes an array of doubles and its dimensions as input
 // sets the array to (((A^t)(A))^-1)(A^t)B
 // where A is a matrix with Ay elements each having Ax features
@@ -182,11 +198,13 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 	int x;
 	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
-	double * MatB = (double *)malloc(Ax * Ay * sizeof(double));
-	double * MatC = (double *)malloc(Ax * Ax * sizeof(double));
-	double * MatC2 = (double *)malloc(Ax * Ax * sizeof(double));
-	double * MatD = (double *)malloc(2 * Ax * Ax * sizeof(double));
+	double * MatA1 = (double *)malloc((Ax + 1) * Ay * sizeof(double));
+	double * MatB = (double *)malloc((Ax + 1) * Ay * sizeof(double));
+	double * MatC = (double *)malloc((Ax + 1) * (Ax + 1) * sizeof(double));
+	double * MatC2 = (double *)malloc((Ax + 1) * (Ax + 1) * sizeof(double));
+	double * MatD = (double *)malloc(2 * (Ax + 1) * (Ax + 1) * sizeof(double));
 	double * MatA_d;
+	double * MatA1_d;
 	double * MatB_d;
 	double * MatC_d;
 	double * MatC2_d;
@@ -195,18 +213,25 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 	double * MatE_d;
 	double * Beta_d;
 	cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
-	cudaMalloc((void **)&MatB_d, Ax * Ay * sizeof(double));
-	cudaMalloc((void **)&MatC_d, Ax * Ax * sizeof(double));
-	cudaMalloc((void **)&MatC2_d, Ax * Ax * sizeof(double));
-	cudaMalloc((void **)&MatC3_d, Ax * Ax * sizeof(double));
-	cudaMalloc((void **)&MatD_d, 2 * Ax * Ax * sizeof(double));
+	cudaMalloc((void **)&MatA1_d, (Ax + 1) * Ay * sizeof(double));
+	cudaMalloc((void **)&MatB_d, (Ax + 1) * Ay * sizeof(double));
+	cudaMalloc((void **)&MatC_d, (Ax + 1) * (Ax + 1) * sizeof(double));
+	cudaMalloc((void **)&MatC2_d, (Ax + 1) * (Ax + 1) * sizeof(double));
+	cudaMalloc((void **)&MatC3_d, (Ax + 1) * (Ax + 1) * sizeof(double));
+	cudaMalloc((void **)&MatD_d, 2 * (Ax + 1) * (Ax + 1) * sizeof(double));
 	cudaMalloc((void **)&MatE_d, Ay * sizeof(double));
-	cudaMalloc((void **)&Beta_d, Ax * sizeof(double));
+	cudaMalloc((void **)&Beta_d, (Ax + 1) * sizeof(double));
 	cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
 	cudaMemcpy(MatE_d, B, Ay * sizeof(double), cudaMemcpyHostToDevice);
 
+	// Append 1s A
+	AppendOne << < Ax, Ay >> > (MatA_d, MatA1_d, Ay, Ax);
+
+	// Add new column
+	Ax++;
+
 	// B = Transpose(A)
-	MatrixTranspose << < Ay, Ax >> > (MatA_d, MatB_d, Ax, Ay);
+	MatrixTranspose << < Ax, Ay >> > (MatA1_d, MatB_d, Ax, Ay);
 	cudaMemcpy(MatB, MatB_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
 	//printf("[At] = \n");
 	//for (x = 0; x < (Ax * Ay); x++) {
@@ -220,8 +245,8 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 	//printf("\n");
 
 	// C = BA
-	MatrixMul << <Ax, Ax >> > (MatB_d, MatA_d, MatC_d, Ay, Ax, Ax, Ay);
-	MatrixMul << <Ax, Ax >> > (MatB_d, MatA_d, MatC2_d, Ay, Ax, Ax, Ay);
+	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC_d, Ay, Ax, Ax, Ay);
+	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC2_d, Ay, Ax, Ax, Ay);
 	cudaMemcpy(MatC, MatC_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
 	printf(" [At][A] = \n");
 	for (x = 0; x < (Ax * Ax); x++) {
@@ -265,7 +290,7 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 	printf("\n");
 
 	// A = CB
-	MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA_d, Ax, Ax, Ay, Ax);
+	MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA1_d, Ax, Ax, Ay, Ax);
 	cudaMemcpy(MatA, MatA_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
 	//printf("Inverse * T = \n");
 	//for (x = 0; x < (Ax * Ay); x++) {
@@ -280,17 +305,19 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 
 	// Beta = AE
 	// E is the known vector
-	MatrixMul << <1, Ax >> > (MatA_d, MatE_d, Beta_d, Ay, Ax, 1, Ay);
+	MatrixMul << <1, Ax >> > (MatA1_d, MatE_d, Beta_d, Ay, Ax, 1, Ay);
 
 	// return Beta
 	cudaMemcpy(C, Beta_d, Ax * sizeof(double), cudaMemcpyDeviceToHost);
 
 	// free resources
 	free(MatA);
+	free(MatA1);
 	free(MatB);
 	free(MatC);
 	free(MatD);
 	cudaFree(MatA_d);
+	cudaFree(MatA1_d);
 	cudaFree(MatB_d);
 	cudaFree(MatC_d);
 	cudaFree(MatD_d);
@@ -304,29 +331,39 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay) {
 // C is the output vector with Ay values
 void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
-	double * MatB = (double *)malloc(Ax * sizeof(double));
+	double * MatA1 = (double *)malloc((Ax + 1) * Ay * sizeof(double));
+	double * MatB = (double *)malloc((Ax + 1) * sizeof(double));
 	double * MatC = (double *)malloc(Ay * sizeof(double));
 	double * MatA_d;
 	double * MatB_d;
 	int x;
 	double * MatC_d;
 	cudaMalloc((void **)&MatA_d, Ax * Ay * sizeof(double));
-	cudaMalloc((void **)&MatB_d, Ax * sizeof(double));
+	cudaMalloc((void **)&MatA1_d, (Ax + 1) * Ay * sizeof(double));
+	cudaMalloc((void **)&MatB_d, (Ax + 1) * sizeof(double));
 	cudaMalloc((void **)&MatC_d, Ay * sizeof(double));
 	cudaMemcpy(MatA_d, A, Ax * Ay * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(MatB_d, B, Ax * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(MatB_d, B, (Ax + 1) * sizeof(double), cudaMemcpyHostToDevice);
+
+	// Append 1s to A
+	AppendOne << <Ax, Ay >> > (MatA_d, MatA1_d, Ay, Ax);
+
+	// Add a column
+	Ax++;
 
 	// C = AB
-	MatrixMul <<<1, Ay >> > (MatA_d, MatB_d, MatC_d, Ax, Ay, 1, Ax);
+	MatrixMul <<<1, Ay >> > (MatA1_d, MatB_d, MatC_d, Ax, Ay, 1, Ax);
 
 	// return C
 	cudaMemcpy(C, MatC_d, Ay * sizeof(double), cudaMemcpyDeviceToHost);
 
 	// free resources
 	free(MatA);
+	free(MatA1);
 	free(MatB);
 	free(MatC);
 	cudaFree(MatA_d);
+	cudaFree(MatA1_d);
 	cudaFree(MatB_d);
 	cudaFree(MatC_d);
 }
@@ -335,10 +372,10 @@ int main()
 {
 	int Asize = AX * AY * sizeof(double);
 	int Bsize = BX * BY * sizeof(double);
-	int Csize = AX * sizeof(double);
+	int Csize = (AX + 1) * sizeof(double);
 	int AarrSize = AX * AY;
 	int BarrSize = BX * BY;
-	int CarrSize = AX;
+	int CarrSize = AX + 1;
 	double * MatA = (double *)malloc(Asize);
 	double * MatB = (double *)malloc(Bsize);
 	double * MatC = (double *)malloc(Csize);
@@ -377,7 +414,7 @@ int main()
 	// get the beta vector
 	get_beta(MatA, MatB, MatC, AX, AY);
 	printf("Beta = \n");
-	for (x = 0; x < AX; x++) {
+	for (x = 0; x < (AX + 1); x++) {
 		printf("%f\n", MatC[x]);
 	}
 	printf("\n");
