@@ -10,23 +10,9 @@
 #define BX 1
 #define BY 1000
 
-
-// possible matrix struct, didnt use here
-struct Matrix {
-	int col;
-	int row;
-	double * data;
-};
-
 // inverts a matrix A by turning first N columns of A|I into RREF
 // # threads = 2N
-
-//TODO: write rule for swapping
-//TODO: write function to concatenate identity matrix to the end of A
-//              effectively     A:-> A|I
-
 // each thread corresponds to a particular column
-
 // perform division on row to turn leading nonzero into a 1
 // perform elimination on all other rows to make pivot column 0s
 __global__ void MatrixInverse(double *A, int Ax, int Ay) {
