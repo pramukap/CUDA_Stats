@@ -60,18 +60,18 @@ __global__ void MatrixInverse(double *A, int Ax, int Ay) {
 		__syncthreads();
 	}
 
-	if (col == 0) {
-		printf("Finished inversion = \n");
-		for (i = 0; i < Ax * Ay; i++) {
-			printf("%fl ", A[i]);
-			if (i != 0) {
-				if ((i % Ay) == (Ay - 1)) {
-					printf("\n");
-				}
-			}
-		}
-		printf("\n");
-	}
+	//if (col == 0) {
+		//printf("Finished inversion = \n");
+		//for (i = 0; i < Ax * Ay; i++) {
+			//printf("%fl ", A[i]);
+			//if (i != 0) {
+				//if ((i % Ay) == (Ay - 1)) {
+					//printf("\n");
+				//}
+			//}
+		//}
+		//printf("\n");
+	//}
 }
 
 // Function that appends an identity matrix to the right of the current matrix
@@ -264,16 +264,16 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC_d, Ay, Ax, Ax, Ay); // O(Ay)
 	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC2_d, Ay, Ax, Ax, Ay);
 	cudaMemcpy(MatC, MatC_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
-	printf(" [At][A] = \n");
-	for (x = 0; x < (Ax * Ax); x++) {
-		printf("%f ", MatC[x]);
-		if (x != 0) {
-			if ((x % Ax) == (Ax - 1)) {
-				printf("\n");
-			}
-		}
-	}
-	printf("\n");
+	//printf(" [At][A] = \n");
+	//for (x = 0; x < (Ax * Ax); x++) {
+		//printf("%f ", MatC[x]);
+		//if (x != 0) {
+			//if ((x % Ax) == (Ax - 1)) {
+				//printf("\n");
+			//}
+		//}
+	//}
+	//printf("\n");
 
 	// Regularization C = C - lambda*I
 
@@ -284,30 +284,30 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	MatrixInverse << <1, 2 * Ax >> > (MatD_d, Ax, 2 * Ax); // O(Ax)
 	ExtractInverse << <Ax, 2 * Ax >> > (MatD_d, MatC_d, Ax, Ax); // O(1)
 	cudaMemcpy(MatC, MatC_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
-	printf(" ([At][A])^-1 = \n");
-	for (x = 0; x < (Ax * Ax); x++) {
-		printf("%f ", MatC[x]);
-		if (x != 0) {
-			if ((x % (Ax)) == ((Ax)-1)) {
-				printf("\n");
-			}
-		}
-	}
-	printf("\n");
+	//printf(" ([At][A])^-1 = \n");
+	//for (x = 0; x < (Ax * Ax); x++) {
+		//printf("%f ", MatC[x]);
+		//if (x != 0) {
+			//if ((x % (Ax)) == ((Ax)-1)) {
+				//printf("\n");
+			//}
+		//}
+	//}
+	//printf("\n");
 
 	// check
 	MatrixMul << <Ax, Ax >> > (MatC_d, MatC2_d, MatC3_d, Ax, Ax, Ax, Ax); // O(Ax)
 	cudaMemcpy(MatC2, MatC3_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
-	printf(" should be identity = \n");
-	for (x = 0; x < (Ax * Ax); x++) {
-		printf("%f ", MatC2[x]);
-		if (x != 0) {
-			if ((x % (Ax)) == ((Ax)-1)) {
-				printf("\n");
-			}
-		}
-	}
-	printf("\n");
+	//printf(" should be identity = \n");
+	//for (x = 0; x < (Ax * Ax); x++) {
+		//printf("%f ", MatC2[x]);
+		//if (x != 0) {
+			//if ((x % (Ax)) == ((Ax)-1)) {
+				//printf("\n");
+			//}
+		//}
+	//}
+	//printf("\n");
 
 	// A = CB
 	MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA1_d, Ax, Ax, Ay, Ax); // O(Ax)
@@ -394,12 +394,16 @@ void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 int main()
 {
 	int Asize = AX * AY * sizeof(double);
+	int A2size = AX * (AY / 10) * sizeof(double);
+	int A3size = AX * (AY / 100) * sizeof(double);
 	int Bsize = BX * BY * sizeof(double);
 	int Csize = (AX + 1) * sizeof(double);
 	int AarrSize = AX * AY;
 	int BarrSize = BX * BY;
 	int CarrSize = AX + 1;
 	double * MatA = (double *)malloc(Asize);
+	double * MatA2 = (double *)malloc(A2size);
+	double * MatA3 = (double *)malloc(A3size);
 	double * MatB = (double *)malloc(Bsize);
 	double * MatC = (double *)malloc(Csize);
 	double * MatD = (double *)malloc(test_size * AX * sizeof(double));
@@ -415,35 +419,37 @@ int main()
 
 	// print initial array
 	int x;
-	printf("[A] = \n");
-	for (x = 0; x < AarrSize; x++) {
-		printf("%d ", (int)MatA[x]);
-		if (x != 0) {
-			if ((x % AX) == (AX - 1)) {
-				printf("\n");
-			}
-		}
-	}
-	printf("\n");
+	//printf("[A] = \n");
+	//for (x = 0; x < AarrSize; x++) {
+		//printf("%d ", (int)MatA[x]);
+		//if (x != 0) {
+			//if ((x % AX) == (AX - 1)) {
+				//printf("\n");
+			//}
+		//}
+	//}
+	//printf("\n");
 
 	// print known value vector
-	printf("[B] = \n");
-	for (x = 0; x < BarrSize; x++) {
-		printf("%f ", MatB[x]);
-		printf("\n");
-	}
-	printf("\n");
+	//printf("[B] = \n");
+	//for (x = 0; x < BarrSize; x++) {
+		//printf("%f ", MatB[x]);
+		//printf("\n");
+	//}
+	//printf("\n");
 
 	// get the beta vector
 	get_beta(MatA, MatB, MatC, AX, AY, 0.0655);
-	printf("Beta = \n");
-	for (x = 0; x < (AX + 1); x++) {
-		printf("%f\n", MatC[x]);
-	}
-	printf("\n");
+	//printf("Beta = \n");
+	//for (x = 0; x < (AX + 1); x++) {
+		//printf("%f\n", MatC[x]);
+	//}
+	//printf("\n");
 
 	// apply the beta vector to the input data
 	linreg(MatD, MatC, MatE, AX, test_size);
+	
+	// print results
 	int to_add;
 	int add_index;
 	int out_of_range = 0;
