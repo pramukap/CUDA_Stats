@@ -3,16 +3,16 @@
 #include "cuda_runtime.h"
 #include <stdio.h>
 
-
+// Assume data is filled
+// Assume centroids is allocated
 void kmeans(double* data, int m, int n, int k, double* centroids, int iterations){
-    
-    
+
     double *data_d;
     double *centroids_d;
     int *counts;
     int *labels;
     double *distances;
-    
+
     cudaMalloc((void**)&data_d, m*n*sizeof(double));
     cudaMalloc((void**)&centroids_d, k*n*sizeof(double));
     cudaMalloc((void**)&counts, k*sizeof(int));
@@ -21,41 +21,31 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
     cudaMemcpy(data_d, data, m*n*sizeof(double), cudaMemcpyHostToDevice);
 
+    // Initalize centroids using random partition of data into k groups
     init_labels<<<m, 1>>>(labels, k);
-    
-    // Update Means Step
     init_zeros<<<k, 1>>>(counts);
     init_zeros<<<k, n>>>(centroids_d);
 
     findNewCentroids<<<m, n>>>(data_d, centroids_d, labels, m, n, k, counts);
-    
     divide_by_count<<<k, n>>>(centroids_d, counts, n, k);
 
-    cudaMemcpy(centroids, centroids_d, k*n*sizeof(double), cudaMemcpyDeviceToHost);
-
     // Set number of iterations
-    for(int step__ = 0; step__ < iterations; step__++){ 
+    for(int step__ = 0; step__ < iterations; step__++){
 
         // Assignment Step
         for(int point = 0; point < m; point++){
 
             subtractPointFromMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
-
             getDistances<<<k, 1>>>(centroids_d, distances, k, n);
-
             assignClass<<<1, 1>>>(distances, labels, k, point);
-
             addPointToMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
 
-        }            
-        
+        }
+
         // Update Means Step
         init_zeros<<<k, 1>>>(counts);
         init_zeros<<<k, n>>>(centroids_d);
-
-
         findNewCentroids<<<m, n>>>(data_d, centroids_d, labels, m, n, k, counts);
-
         divide_by_count<<<k, n>>>(centroids_d, counts, n, k);
 
     }
@@ -69,39 +59,35 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
 }
 
+// Assume centroids is filled
+// Assume labels is allocated
+// Assume data is filled
 void kmeans_classify(double * centroids, double * data, int *labels_h, int m, int n, int k){
-    
+
     double *data_d;
     double *centroids_d;
     int *labels;
     double *distances;
-    
+
     cudaMalloc((void**)&data_d, m*n*sizeof(double));
     cudaMalloc((void**)&centroids_d, k*n*sizeof(double));
     cudaMalloc((void**)&labels, m*sizeof(int));
     cudaMalloc((void**)&distances, k*sizeof(double));
 
-    cudaMemcpy(data_d, data, m*n*sizeof(double), cudaMemcpyHostToDevice); 
+    cudaMemcpy(data_d, data, m*n*sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(centroids_d, centroids, k*n*sizeof(double), cudaMemcpyHostToDevice);
 
     for(int point = 0; point < m; point++){
-
         subtractPointFromMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
-
         getDistances<<<k, 1>>>(centroids_d, distances, k, n);
-
         assignClass<<<1, 1>>>(distances, labels, k, point);
-
         addPointToMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
-
-    }  
+    }
 
     cudaMemcpy(labels_h, labels, m*sizeof(int), cudaMemcpyDeviceToHost);
-
 }
 
 void run_small_kmeans_test(){
-
 
     int m = 12;
     int n = 2;
@@ -114,7 +100,8 @@ void run_small_kmeans_test(){
     kmeans(data, m, n, k, centroids, iterations);
 
 }
-void printConfusion(int *actual, int*expect){
+
+void printConfusionMatrix(int *actual, int*expect){
 
     int tp = 0;
     int fp = 0;
@@ -143,7 +130,7 @@ void printConfusion(int *actual, int*expect){
 }
 
 void run_uni_data_test(){
-    
+
     int m = 777;
     int n = 17;
     int k = 2;
@@ -161,14 +148,14 @@ void run_uni_data_test(){
     int *labels = (int *) malloc(sizeof(int) * m);
     kmeans_classify(centroids, data, labels, m, n, k);
 
-    printConfusion(labels, results);
+    printConfusionMatrix(labels, results);
 }
 
 
 
 int main(){
-    
-   run_small_kmeans_test(); 
+
+   run_small_kmeans_test();
    run_uni_data_test();
    return 0;
 }

@@ -3,21 +3,6 @@
 #include "device_launch_parameters.h"
 #include <stdio.h>
 
-// takes a data point (1xn) [x0, x1, x2, x3, x4]
-// and subtracts this vector from all means:
-//  [k11 - x1, k12 - x2, k13 - x3, k14 - x4]
-//  [k21 - x1, k22 - x2, ...
-//  [k31 - x1, k32 - x2 ....
-//   ...
-//  [kk1 - x1, ...
-
-// points = data
-// centroids = k means
-// m = num observations
-// n = num features
-// k = num k means
-// point = point under scrutiny
-
 // requires centroid to be init
 __global__ void subtractPointFromMeans(double *points, double *centroids, int m, int n, int k, int point) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -43,12 +28,6 @@ __global__ void getDistances(double *vectors, double *distances, int k, int n){
     distances[x] = distance;
 }
 
-__global__ void init_labels(int* labels, int k){
-    
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    labels[x] = x % k;
-
-}
 
 __global__ void assignClass(double *distances, int* labels, int k, int i){
 
@@ -89,9 +68,6 @@ __global__ void findNewCentroids(double *points, double *centroids, int* classla
     int label = classlabels[x / n];
 
     atomicAdd(counts+label, 1);
-    
-//    printf("Thread %d is adding %f to feature %d of class %d\n", x, points[x], x%n, label);
-    
     atomicAdd(centroids+ n*label + x % n, points[x]);
 
 }
@@ -99,8 +75,7 @@ __global__ void findNewCentroids(double *points, double *centroids, int* classla
 __global__ void divide_by_count(double *centroids, int *count, int n, int k){
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
-
-    centroids[x] = n*centroids[x] / (count[x / n] );
+    centroids[x] = n * centroids[x] / (count[x / n] );
 
 }
 
@@ -111,9 +86,17 @@ __global__ void init_zeros(double *array){
     array[idx] = 0;
 
 }
+
 __global__ void init_zeros(int *array){
 
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     array[idx] = 0;
+
+}
+
+__global__ void init_labels(int* labels, int k){
+
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    labels[x] = x % k;
 
 }
