@@ -13,3 +13,4 @@ __global__ void divide_by_count(double *centroids, int *count, int n, int k);
 __global__ void init_zeros(double *array);
 __global__ void init_zeros(int *array);
 __global__ void init_labels(int *labels, int k);
+__global__ void assignClasses(double *data, double *means, int m, int n, int k, int*labels, double*distances);

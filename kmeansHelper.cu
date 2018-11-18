@@ -3,6 +3,25 @@
 #include "device_launch_parameters.h"
 #include <stdio.h>
 
+
+__global__ void assignClasses(double *data, double *means, int m, int n, int k, int*labels, double*distances){
+
+	int idx = blockIdx.x * blockDim.x + threadIdx.x;
+	int distance = 0;
+	for(int ki = 0; ki < k; ki++){
+		// For mean ki
+		for(int i = 0; i < n; i++){
+			distance += (data[idx*n + i]-means[ki*n + i])*(data[idx*n + i]-means[ki*n + i]);
+		}
+		if ki == 0 || distance > distances[idx]{
+			labels[idx] = ki;
+			distances[idx] = distance;
+		}
+		distance = 0;
+	}
+
+}
+
 // requires centroid to be init
 __global__ void subtractPointFromMeans(double *points, double *centroids, int m, int n, int k, int point) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;

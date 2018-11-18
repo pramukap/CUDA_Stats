@@ -17,7 +17,10 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
     cudaMalloc((void**)&centroids_d, k*n*sizeof(double));
     cudaMalloc((void**)&counts, k*sizeof(int));
     cudaMalloc((void**)&labels, m*sizeof(int));
+    /* old distance
     cudaMalloc((void**)&distances, k*sizeof(double));
+    */
+    cudaMalloc((void**)&distances, m*sizeof(double));
 
     cudaMemcpy(data_d, data, m*n*sizeof(double), cudaMemcpyHostToDevice);
 
@@ -33,6 +36,10 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
     for(int step__ = 0; step__ < iterations; step__++){
 
         // Assignment Step
+        assignClasses<<<m, 1>>>(data_d, centroids_d, m, n, k, labels, distances);
+
+
+        /* OLD ASSIGNMENT
         for(int point = 0; point < m; point++){
 
             subtractPointFromMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
@@ -41,6 +48,7 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
             addPointToMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
 
         }
+        */
 
         // Update Means Step
         init_zeros<<<k, 1>>>(counts);
