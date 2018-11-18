@@ -16,6 +16,8 @@
 // n = num features
 // k = num k means
 // point = point under scrutiny
+
+// requires centroid to be init
 __global__ void subtractPointFromMeans(double *points, double *centroids, int m, int n, int k, int point) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
     int f = x % k;
@@ -31,7 +33,7 @@ __global__ void addPointToMeans(double *points, double *centroids, int m, int n,
 
 // Called by K threads
 __global__ void getDistances(double *vectors, double *distances, int k, int n){
-    
+
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int distance = 0;
     for(int i = 0; i < n; i++){
@@ -40,6 +42,21 @@ __global__ void getDistances(double *vectors, double *distances, int k, int n){
     distances[x] = distance;
 }
 
+__global__ void assignClass(double *distances, double* labels, int k, int i){
+
+    int min = distances[0];
+    int minidx = 0;
+    for (int i = 0; i < k; i++){
+        if (distances[i] < min){
+            min = distances[i];
+            minidx = i;
+        }
+    }
+    labels[i] = minidx;
+
+}
+
+// counts has to be initialized to zeros
 __global__ void findNewCentroids(double *points, double *centroids, double* classlabels, int m, int n, int k, int* counts){
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -50,11 +67,18 @@ __global__ void findNewCentroids(double *points, double *centroids, double* clas
 
 }
 
-__global__ void divide_by_count(double *centroids, double *count, int n, int k){
+__global__ void divide_by_count(double *centroids, int *count, int n, int k){
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
-    
+
     centroids[x] = centroids[x] / (count[x / n] * n);
 
 }
 
+
+__global__ void init_zeros(double *array){
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    array[idx] = 0;
+
+}
