@@ -32,7 +32,7 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
             getDistances<<<k, 1>>>(centroids_d, distances, k, n);
 
-            assignClass(distances, labels, k, i);
+            assignClass<<<1, 1>>>(distances, labels, k, i);
 
             addPointToMeans<<<k, n>>>(data_d, centroids_d, m, n, k, i);
 
