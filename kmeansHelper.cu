@@ -1,4 +1,5 @@
 #include "cuda_runtime.h"
+#include "device_functions.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
 
@@ -42,7 +43,7 @@ __global__ void getDistances(double *vectors, double *distances, int k, int n){
     distances[x] = distance;
 }
 
-__global__ void assignClass(double *distances, double* labels, int k, int i){
+__global__ void assignClass(double *distances, int* labels, int k, int i){
 
     int min = distances[0];
     int minidx = 0;

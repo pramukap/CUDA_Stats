@@ -28,22 +28,22 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
         // Assignment Step
         for(int i = 0; i < m; i++){
 
-            subtractPointFromMeans<<<k, n>>>(data, centroids, m, n, k, i);
+            subtractPointFromMeans<<<k, n>>>(data_d, centroids_d, m, n, k, i);
 
-            getDistances<<<k, 1>>>(centroids, distances, k, n);
+            getDistances<<<k, 1>>>(centroids_d, distances, k, n);
 
             assignClass(distances, labels, k, i);
 
-            addPointToMeans<<<k, n>>>(data, centroids, m, n, k, i);
+            addPointToMeans<<<k, n>>>(data_d, centroids_d, m, n, k, i);
 
         }            
         
         // Update Means Step
         init_zero<<<k, 1>>>(counts);
 
-        findNewCentroids<<<k, n>>>(points, centroids, labels, m, n, k, counts);
+        findNewCentroids<<<k, n>>>(data_d, centroids_d, labels, m, n, k, counts);
 
-        divide_by_count<<<k, n>>>(centroids, counts, n, k);
+        divide_by_count<<<k, n>>>(centroids_d, counts, n, k);
 
     }
 
