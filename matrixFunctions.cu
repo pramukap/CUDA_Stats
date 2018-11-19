@@ -308,7 +308,7 @@ void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 // Known values corrospond to the training set
 // Test set will be used to test the line of best fit
 // Test values are the actual values of the test set
-// X is the number of features in the dataset. should be multiple of 100 for tests to work
+// X is the number of features in the dataset.
 // Y is the number of elements in the training set. should be less than 1024
 // Yt is the number of elements in the test set
 extern "C" {
@@ -429,7 +429,7 @@ extern "C" {
 		sum_s3 = sqrt(sum_s3 / Yt);
 
 		// Print 10 element test report
-		printf("Results for 10 element test:\n\n");
+		printf("Results for %d element test:\n\n", (AY / 100));
 		printf("Beta = \n");
 		for (x = 0; x < (AX + 1); x++) {
 			printf("%f\n", MatC3[x]);
@@ -450,7 +450,7 @@ extern "C" {
 		printf("RMSE: %f\n\n\n", sum_s3);
 
 		// Print 100 element test report
-		printf("Results for 100 element test:\n\n");
+		printf("Results for %d element test:\n\n", (AY / 10));
 		printf("Beta = \n");
 		for (x = 0; x < (AX + 1); x++) {
 			printf("%f\n", MatC2[x]);
@@ -471,7 +471,7 @@ extern "C" {
 		printf("RMSE: %f\n\n\n", sum_s2);
 
 		// Print 1000 element test report
-		printf("Results for 1000 element test:\n\n");
+		printf("Results for %d element test:\n\n", AY);
 		printf("Beta = \n");
 		for (x = 0; x < (AX + 1); x++) {
 			printf("%f\n", MatC[x]);
