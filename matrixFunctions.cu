@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include "time.h"
 #include "math.h"
+#include "house_med.h"
 
 // inverts a matrix A by turning first N columns of A|I into RREF
 // # threads = 2N
@@ -499,4 +500,9 @@ extern "C" {
 		free(MatE);
 
 	}
+}
+
+int main() {
+	linreg_test(houses_m, prices_m, test_houses_m, real_prices_m, features, training_size, test_size);
+	return 0;
 }
