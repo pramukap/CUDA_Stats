@@ -1,5 +1,6 @@
 #include "kmeansHelper.cu"
-#include "University_Data.h"
+//#include "University_Data.h"
+#include "Iris_Data.h"
 #include "cuda_runtime.h"
 #include <stdio.h>
 
@@ -36,10 +37,12 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
     for(int step__ = 0; step__ < iterations; step__++){
 
         // Assignment Step
+        init_zeros<<<m, 1>>>(distances);
         assignClasses<<<m, 1>>>(data_d, centroids_d, m, n, k, labels, distances);
 
 
-        /* OLD ASSIGNMENT
+        // OLD ASSIGNMENT
+        /*
         for(int point = 0; point < m; point++){
 
             subtractPointFromMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
@@ -136,7 +139,7 @@ void printConfusionMatrix(int *actual, int*expect){
 
 
 }
-
+/*
 void run_uni_data_test(){
 
     int m = 777;
@@ -157,13 +160,36 @@ void run_uni_data_test(){
     kmeans_classify(centroids, data, labels, m, n, k);
 
     printConfusionMatrix(labels, results);
+}*/
+
+void run_iris_data(int itr_){
+
+    int m = 150;
+    int n = 4;
+    int k = 3;
+    int itr = itr_;
+
+    double *centroids = (double*) malloc(k*n*sizeof(double));
+    kmeans(data, m, n, k, centroids, itr);
+
+    for(int i = 0; i < k; i++){
+        printf("\nKmean%d:\t", i);
+        for(int j = 0; j < n; j++){
+            printf("%f\t", centroids[i*n + j]);
+        }
+    }
+
+
 }
-/*
 
 
 int main(){
 
-   run_small_kmeans_test();
-   run_uni_data_test();
+ //  run_small_kmeans_test();
+ //  run_uni_data_test();
+    for(int i = 0; i < 20; i++){
+        printf("\nIteration %d------\n", i);
+        run_iris_data(i);
+    }
    return 0;
-} */
+} 
