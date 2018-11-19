@@ -2,7 +2,7 @@
 #include "device_launch_parameters.h"
 #include <stdio.h>
 
-
+__global__ void copyCentroidToOld(double *newM, double *old);
 __global__ void subtractPointFromMeans(double *points, double *centroids, int m, int n, int k, int point);
 __global__ void addPointToMeans(double *points, double *centroids, int m, int n, int k, int point);
 __global__ void getDistances(double *vectors, double *distances, int k, int n);

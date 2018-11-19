@@ -22,6 +22,7 @@ __global__ void assignClasses(double *data, double *means, int m, int n, int k, 
 
 }
 
+
 // requires centroid to be init
 __global__ void subtractPointFromMeans(double *points, double *centroids, int m, int n, int k, int point) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -94,6 +95,9 @@ __global__ void findNewCentroids(double *points, double *centroids, int* classla
 __global__ void divide_by_count(double *centroids, int *count, int n, int k){
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
+    if(count[x/n] == 0){
+        //printf("DIVIDE BY ZERO!!!");
+    }
     centroids[x] = n * centroids[x] / (count[x / n] );
 
 }
@@ -117,5 +121,15 @@ __global__ void init_labels(int* labels, int k){
 
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     labels[x] = x % k;
+
+}
+
+__global__ void copyCentroidToOld(double* newM, double* old){ 
+
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if( !(newM[idx] != newM[idx]) ){
+        old[idx] = newM[idx];
+    }
 
 }

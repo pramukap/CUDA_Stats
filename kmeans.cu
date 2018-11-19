@@ -1,6 +1,7 @@
 #include "kmeansHelper.cu"
 //#include "University_Data.h"
-#include "Iris_Data.h"
+//#include "Iris_Data.h"
+#include "large_cluster.h"
 #include "cuda_runtime.h"
 #include <stdio.h>
 
@@ -14,8 +15,11 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
     int *labels;
     double *distances;
 
+    double *new_mean;
+
     cudaMalloc((void**)&data_d, m*n*sizeof(double));
     cudaMalloc((void**)&centroids_d, k*n*sizeof(double));
+    cudaMalloc((void**)&new_mean, k*n*sizeof(double));
     cudaMalloc((void**)&counts, k*sizeof(int));
     cudaMalloc((void**)&labels, m*sizeof(int));
     /* old distance
@@ -55,9 +59,11 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
         // Update Means Step
         init_zeros<<<k, 1>>>(counts);
-        init_zeros<<<k, n>>>(centroids_d);
-        findNewCentroids<<<m, n>>>(data_d, centroids_d, labels, m, n, k, counts);
-        divide_by_count<<<k, n>>>(centroids_d, counts, n, k);
+        init_zeros<<<k, n>>>(new_mean);
+        findNewCentroids<<<m, n>>>(data_d, new_mean, labels, m, n, k, counts);
+        divide_by_count<<<k, n>>>(new_mean, counts, n, k);
+
+        copyCentroidToOld<<<k, n>>>(new_mean, centroids_d);
 
     }
     cudaMemcpy(centroids, centroids_d, k*n*sizeof(double), cudaMemcpyDeviceToHost);
@@ -193,23 +199,69 @@ void run_iris_data_output(int itr_){
     kmeans(data, m, n, k, centroids, itr);
 
     for(int i = 0; i < k; i++){
+        if(i==2){
+        for(int j = 0; j < n; j++){
+            if(j != n -1){
+            printf("%f,", centroids[i*n + j]);
+            } else {
+                printf("%f", centroids[i*n + j]);
+            }
+        }}
+    }
+/*    int *labels = (int *) malloc(sizeof(int) * m);
+    kmeans_classify(centroids, data, labels, m, n, k);
+    for(int i = 0; i < m; i++){
+        if (i == m-1){
+            printf("%d", labels[i]);
+        } else{
+        printf("%d,", labels[i]);
+        }}
+*/
+
+}
+
+void run_large_dataset(int m_){
+
+    int m = m_;
+    int n = 2;
+    int k = 15;
+    int itr = 500;
+
+    clock_t start, end;
+    double cpu_time;
+
+    double *centroids = (double*) malloc(k*n*sizeof(double));
+
+    start = clock();
+    kmeans(data, m, n, k, centroids, itr);
+    end = clock();
+
+    cpu_time = ((double)(end-start))/CLOCKS_PER_SEC;
+
+    printf("Size: %d ran in %f\n", m, cpu_time);
+    for(int i = 0; i < k; i++){
         printf("\nKmean%d:\t", i);
         for(int j = 0; j < n; j++){
             printf("%f\t", centroids[i*n + j]);
         }
     }
-
-
+    
 }
 
-
 int main(){
-
+   
+    
+    run_large_dataset(10);
+    run_large_dataset(100);
+    run_large_dataset(500);
+    run_large_dataset(1000);
+    run_large_dataset(2500);
+    run_large_dataset(5000);
  //  run_small_kmeans_test();
  //  run_uni_data_test();
-    for(int i = 0; i < 20; i++){
-        printf("\nIteration %d------\n", i);
-        run_iris_data(i);
-    }
+//    for(int i = 0; i < 12; i++){
+ //       printf("\n");
+   //     run_iris_data_output(i);
+   // }
    return 0;
 } 

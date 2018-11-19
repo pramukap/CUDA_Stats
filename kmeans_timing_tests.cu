@@ -26,7 +26,8 @@ int main(void){
 
     run_uni_data_test(10);
     run_uni_data_test(100);
-    run_uni_data_test(500);
+    run_uni_data_test(1000);
+    run_uni_data_test(10000);
 
     return 0;
 }
