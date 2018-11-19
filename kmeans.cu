@@ -193,12 +193,24 @@ void run_iris_data_output(int itr_){
     kmeans(data, m, n, k, centroids, itr);
 
     for(int i = 0; i < k; i++){
-        printf("\nKmean%d:\t", i);
+        if(i==2){
         for(int j = 0; j < n; j++){
-            printf("%f\t", centroids[i*n + j]);
-        }
+            if(j != n -1){
+            printf("%f,", centroids[i*n + j]);
+            } else {
+                printf("%f", centroids[i*n + j]);
+            }
+        }}
     }
-
+/*    int *labels = (int *) malloc(sizeof(int) * m);
+    kmeans_classify(centroids, data, labels, m, n, k);
+    for(int i = 0; i < m; i++){
+        if (i == m-1){
+            printf("%d", labels[i]);
+        } else{
+        printf("%d,", labels[i]);
+        }}
+*/
 
 }
 
@@ -207,9 +219,9 @@ int main(){
 
  //  run_small_kmeans_test();
  //  run_uni_data_test();
-    for(int i = 0; i < 20; i++){
-        printf("\nIteration %d------\n", i);
-        run_iris_data(i);
+    for(int i = 0; i < 12; i++){
+        printf("\n");
+        run_iris_data_output(i);
     }
    return 0;
 } 
