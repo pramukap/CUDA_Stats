@@ -182,6 +182,26 @@ void run_iris_data(int itr_){
 
 }
 
+void run_iris_data_output(int itr_){
+
+    int m = 150;
+    int n = 4;
+    int k = 3;
+    int itr = itr_;
+
+    double *centroids = (double*) malloc(k*n*sizeof(double));
+    kmeans(data, m, n, k, centroids, itr);
+
+    for(int i = 0; i < k; i++){
+        printf("\nKmean%d:\t", i);
+        for(int j = 0; j < n; j++){
+            printf("%f\t", centroids[i*n + j]);
+        }
+    }
+
+
+}
+
 
 int main(){
 
