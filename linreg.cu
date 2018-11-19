@@ -3,6 +3,8 @@
 #include "device_launch_parameters.h"
 #include <stdio.h>
 #include "house_med.h"
+#include "time.h"
+#include "math.h"
 
 // define matrix size
 #define AX 8
@@ -52,26 +54,10 @@ __global__ void MatrixInverse(double *A, int Ax, int Ay) {
 			if ((j != i)) {
 				A[j*Ay + col] = old_val - mult * to_mult;
 			}
-			//if (col == 20) {
-				//printf("mult = %fl index = %d, to_mult = %fl index = %d, old_val = %fl index = %d, j = %d, i = %d, col = %d, new = %fl\n", mult, (j*Ay + i), to_mult, (i*Ay + col), old_val, (j*Ay + col), j, i, col, A[j*Ay + col]);
-			//}
 		}
 
 		__syncthreads();
 	}
-
-	//if (col == 0) {
-		//printf("Finished inversion = \n");
-		//for (i = 0; i < Ax * Ay; i++) {
-			//printf("%fl ", A[i]);
-			//if (i != 0) {
-				//if ((i % Ay) == (Ay - 1)) {
-					//printf("\n");
-				//}
-			//}
-		//}
-		//printf("\n");
-	//}
 }
 
 // Function that appends an identity matrix to the right of the current matrix
@@ -217,14 +203,11 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	double * MatA1 = (double *)malloc((Ax + 1) * Ay * sizeof(double));
 	double * MatB = (double *)malloc((Ax + 1) * Ay * sizeof(double));
 	double * MatC = (double *)malloc((Ax + 1) * (Ax + 1) * sizeof(double));
-	double * MatC2 = (double *)malloc((Ax + 1) * (Ax + 1) * sizeof(double));
 	double * MatD = (double *)malloc(2 * (Ax + 1) * (Ax + 1) * sizeof(double));
 	double * MatA_d;
 	double * MatA1_d;
 	double * MatB_d;
 	double * MatC_d;
-	double * MatC2_d;
-	double * MatC3_d;
 	double * MatD_d;
 	double * MatE_d;
 	double * Beta_d;
@@ -232,8 +215,6 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	cudaMalloc((void **)&MatA1_d, (Ax + 1) * Ay * sizeof(double));
 	cudaMalloc((void **)&MatB_d, (Ax + 1) * Ay * sizeof(double));
 	cudaMalloc((void **)&MatC_d, (Ax + 1) * (Ax + 1) * sizeof(double));
-	cudaMalloc((void **)&MatC2_d, (Ax + 1) * (Ax + 1) * sizeof(double));
-	cudaMalloc((void **)&MatC3_d, (Ax + 1) * (Ax + 1) * sizeof(double));
 	cudaMalloc((void **)&MatD_d, 2 * (Ax + 1) * (Ax + 1) * sizeof(double));
 	cudaMalloc((void **)&MatE_d, Ay * sizeof(double));
 	cudaMalloc((void **)&Beta_d, (Ax + 1) * sizeof(double));
@@ -248,80 +229,20 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 
 	// B = Transpose(A)
 	MatrixTranspose << < Ax, Ay >> > (MatA1_d, MatB_d, Ax, Ay); // O(1)
-	cudaMemcpy(MatB, MatB_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
-	//printf("[At] = \n");
-	//for (x = 0; x < (Ax * Ay); x++) {
-		//printf("%f ", MatB[x]);
-		//if (x != 0) {
-			//if ((x % Ay) == (Ay - 1)) {
-				//printf("\n");
-			//}
-		//}
-	//}
-	//printf("\n");
 
 	// C = BA
 	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC_d, Ay, Ax, Ax, Ay); // O(Ay)
-	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC2_d, Ay, Ax, Ax, Ay);
-	cudaMemcpy(MatC, MatC_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
-	//printf(" [At][A] = \n");
-	//for (x = 0; x < (Ax * Ax); x++) {
-		//printf("%f ", MatC[x]);
-		//if (x != 0) {
-			//if ((x % Ax) == (Ax - 1)) {
-				//printf("\n");
-			//}
-		//}
-	//}
-	//printf("\n");
 
 	// Regularization C = C - lambda*I
-
 	AddLambdaToDiagonal << <Ax, Ax >> > (MatC_d, lambda, Ax, Ax); // O(1)
 
 	// Invert C
 	MatrixAppendIdentity << <Ax, 2 * Ax >> > (MatC_d, MatD_d, Ax, Ax); // O(1)
 	MatrixInverse << <1, 2 * Ax >> > (MatD_d, Ax, 2 * Ax); // O(Ax)
 	ExtractInverse << <Ax, 2 * Ax >> > (MatD_d, MatC_d, Ax, Ax); // O(1)
-	cudaMemcpy(MatC, MatC_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
-	//printf(" ([At][A])^-1 = \n");
-	//for (x = 0; x < (Ax * Ax); x++) {
-		//printf("%f ", MatC[x]);
-		//if (x != 0) {
-			//if ((x % (Ax)) == ((Ax)-1)) {
-				//printf("\n");
-			//}
-		//}
-	//}
-	//printf("\n");
-
-	// check
-	MatrixMul << <Ax, Ax >> > (MatC_d, MatC2_d, MatC3_d, Ax, Ax, Ax, Ax); // O(Ax)
-	cudaMemcpy(MatC2, MatC3_d, Ax * Ax * sizeof(double), cudaMemcpyDeviceToHost);
-	//printf(" should be identity = \n");
-	//for (x = 0; x < (Ax * Ax); x++) {
-		//printf("%f ", MatC2[x]);
-		//if (x != 0) {
-			//if ((x % (Ax)) == ((Ax)-1)) {
-				//printf("\n");
-			//}
-		//}
-	//}
-	//printf("\n");
 
 	// A = CB
 	MatrixMul << <Ax, Ay >> > (MatC_d, MatB_d, MatA1_d, Ax, Ax, Ay, Ax); // O(Ax)
-	cudaMemcpy(MatA, MatA_d, Ax * Ay * sizeof(double), cudaMemcpyDeviceToHost);
-	//printf("Inverse * T = \n");
-	//for (x = 0; x < (Ax * Ay); x++) {
-		//printf("%f ", MatA[x]);
-		//if (x != 0) {
-			//if ((x % Ay) == (Ay - 1)) {
-				//printf("\n");
-			//}
-		//}
-	//}
-	//printf("\n");
 
 	// Beta = AE
 	// E is the known vector
@@ -393,64 +314,71 @@ void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 
 int main()
 {
+	// Training data arrays
 	int Asize = AX * AY * sizeof(double);
 	int A2size = AX * (AY / 10) * sizeof(double);
 	int A3size = AX * (AY / 100) * sizeof(double);
-	int Bsize = BX * BY * sizeof(double);
-	int Csize = (AX + 1) * sizeof(double);
 	int AarrSize = AX * AY;
-	int BarrSize = BX * BY;
-	int CarrSize = AX + 1;
 	double * MatA = (double *)malloc(Asize);
 	double * MatA2 = (double *)malloc(A2size);
 	double * MatA3 = (double *)malloc(A3size);
+	memcpy(MatA, houses_m, Asize);
+	memcpy(MatA2, houses_m, A2size);
+	memcpy(MatA3, houses_m, A3size);
+
+	// Known price arrays
+	int Bsize = BX * BY * sizeof(double);
+	int B2size = BX * (BY / 10) * sizeof(double);
+	int B3size = BX * (BY / 100) * sizeof(double);
+	int BarrSize = BX * BY;
 	double * MatB = (double *)malloc(Bsize);
+	double * MatB2 = (double *)malloc(Bsize);
+	double * MatB3 = (double *)malloc(Bsize);
+	memcpy(MatB, prices_m, Bsize);
+	memcpy(MatB2, prices_m, B2size);
+	memcpy(MatB3, prices_m, B3size);
+
+	// Output Arrays
+	int Csize = (AX + 1) * sizeof(double);
+	int CarrSize = AX + 1;
 	double * MatC = (double *)malloc(Csize);
 	double * MatD = (double *)malloc(test_size * AX * sizeof(double));
 	double * MatE = (double *)malloc(test_size * sizeof(double));
-	double * MatA_d;
-	double * MatB_d;
-	double * MatC_d;
-	double * MatD_d;
-
-	memcpy(MatA, houses_m,  Asize);
-	memcpy(MatB, prices_m, Bsize);
+	double * MatE2 = (double *)malloc(test_size * sizeof(double));
+	double * MatE3 = (double *)malloc(test_size * sizeof(double));
 	memcpy(MatD, test_houses_m, test_size * AX * sizeof(double));
-
-	// print initial array
-	int x;
-	//printf("[A] = \n");
-	//for (x = 0; x < AarrSize; x++) {
-		//printf("%d ", (int)MatA[x]);
-		//if (x != 0) {
-			//if ((x % AX) == (AX - 1)) {
-				//printf("\n");
-			//}
-		//}
-	//}
-	//printf("\n");
-
-	// print known value vector
-	//printf("[B] = \n");
-	//for (x = 0; x < BarrSize; x++) {
-		//printf("%f ", MatB[x]);
-		//printf("\n");
-	//}
-	//printf("\n");
-
-	// get the beta vector
-	get_beta(MatA, MatB, MatC, AX, AY, 0.0655);
-	//printf("Beta = \n");
-	//for (x = 0; x < (AX + 1); x++) {
-		//printf("%f\n", MatC[x]);
-	//}
-	//printf("\n");
-
-	// apply the beta vector to the input data
-	linreg(MatD, MatC, MatE, AX, test_size);
 	
-	// print results
-	int to_add;
+	// Set up timing variables
+	clock_t start, end;
+	double time3, time2, time;
+
+	int x;
+
+	// Test with 10 training observations
+	// Fit a line to the training data
+	start = clock();
+	get_beta(MatA3, MatB3, MatC, AX, (AY / 100), 0.0655);
+	end = clock();
+	time3 = ((double)(end - start)) / CLOCKS_PER_SEC;
+	// Apply the beta vector to the input data to get the predicted values
+	linreg(MatD, MatC, MatE3, AX, test_size);
+	
+	// Test with 100 training observations
+	start = clock();
+	get_beta(MatA2, MatB2, MatC, AX, (AY / 10), 0.0655);
+	end = clock();
+	time2 = ((double)(end - start)) / CLOCKS_PER_SEC;
+	linreg(MatD, MatC, MatE2, AX, test_size);
+
+	// Test with 1000 training observations
+	start = clock();
+	get_beta(MatA, MatB, MatC, AX, AY, 0.0655);
+	end = clock();
+	time = ((double)(end - start)) / CLOCKS_PER_SEC;
+	linreg(MatD, MatC, MatE, AX, test_size);
+
+	// Print test reports
+	double to_add, to_add2, to_add3;
 	int add_index;
 	int out_of_range = 0;
 	int error_hist[60];
@@ -458,47 +386,109 @@ int main()
 		error_hist[x] = 0;
 	}
 	double sum = 0;
+	double sum2 = 0;
+	double sum3 = 0;
 	double sum_s = 0;
-	printf("Test Results = \n");
+	double sum_s2 = 0;
+	double sum_s3 = 0;
+
+	// Calculate errors
 	for (x = 0; x < test_size; x++) {
-		printf("%f vs %f\n", MatE[x], real_prices_m[x]);
-		if (MatE[x] > real_prices_m[x]) {
-			to_add = (MatE[x] - real_prices_m[x]);
-			add_index = (int)(to_add / 10000);
-			if (add_index >= 60) {
-				out_of_range++;
-			}
-			else {
-				error_hist[add_index]++;
-			}
-			sum += to_add;
-			sum_s += (MatE[x] - real_prices_m[x]) * (MatE[x] - real_prices_m[x]);
+		// get the error
+		to_add = (MatE[x] - real_prices_m[x]);
+		to_add2 = (MatE2[x] - real_prices_m[x]);
+		to_add3 = (MatE3[x] - real_prices_m[x]);
+
+		// absolute value
+		if (to_add < 0) {
+			to_add = to_add * -1;
+		}
+		if (to_add2 < 0) {
+			to_add2 = to_add2 * -1;
+		}
+		if (to_add3 < 0) {
+			to_add3 = to_add3 * -1;
+		}
+
+		// update histogram for 1000 element test
+		add_index = (int)(to_add / 10000);
+		if (add_index >= 60) {
+			out_of_range++;
 		}
 		else {
-			to_add = (real_prices_m[x] - MatE[x]);
-			add_index = (int)(to_add / 10000);
-			if (add_index >= 60) {
-				out_of_range++;
-			}
-			else {
-				error_hist[add_index]++;
-			}
-			sum += to_add;
-			sum_s += (real_prices_m[x] - MatE[x]) * (real_prices_m[x] - MatE[x]);
+			error_hist[add_index]++;
+		}
+
+		// update the sum and sum of squares
+		sum += to_add;
+		sum2 += to_add2;
+		sum3 += to_add3;
+		sum_s += (to_add * to_add);
+		sum_s2 += (to_add2 * to_add2);
+		sum_s3 += (to_add3 * to_add3);
+	}
+	// calculate average error
+	sum = sum / test_size;
+	sum2 = sum2 / test_size;
+	sum3 = sum3 / test_size;
+	// calculate RMSE
+	sum_s = sqrt(sum_s / test_size);
+	sum_s2 = sqrt(sum_s2 / test_size);
+	sum_s3 = sqrt(sum_s3 / test_size);
+
+	// Print 10 element test report
+	printf("Results for 10 element test:\n\n");
+	for (x = 0; x < test_size; x++) {
+		if (x % 2 == 0 && x != 0) {
+			printf("\n");
+			printf("Predicted: %f  \tActual: %f\t\t", MatE3[x], real_prices_m[x]);
+		}
+		else {
+			printf("Predicted: %f  \tActual: %f\t\t", MatE3[x], real_prices_m[x]);
 		}
 	}
 	printf("\n");
+	printf("Best fit calculation time: %f\n", time3);
+	printf("Average error: %f\n", sum3);
+	printf("RMSE: %f\n\n\n", sum_s3);
 
-	sum = sum / test_size;
-	sum_s = sum_s / test_size;
-
-	for (x = 0; x < 60; x++) {
-		printf("Errors between %d0000 and %d0000: %d\n", x, x + 1, error_hist[x]);
+	// Print 100 element test report
+	printf("Results for 100 element test:\n\n");
+	for (x = 0; x < test_size; x++) {
+		if (x % 2 == 0 && x != 0) {
+			printf("\n");
+			printf("Predicted: %f  \tActual: %f\t\t", MatE2[x], real_prices_m[x]);
+		}
+		else {
+			printf("Predicted: %f  \tActual: %f\t\t", MatE2[x], real_prices_m[x]);
+		}
 	}
-	printf("Errors over 600000: %d\n", out_of_range);
 	printf("\n");
+	printf("Best fit calculation time: %f\n", time2);
+	printf("Average error: %f\n", sum2);
+	printf("RMSE: %f\n\n\n", sum_s2);
 
-	printf("Average Error = %f\n\n", sum, sum_s);
+	// Print 1000 element test report
+	printf("Results for 1000 element test:\n\n");
+	for (x = 0; x < test_size; x++) {
+		if (x % 2 == 0 && x != 0) {
+			printf("\n");
+			printf("Predicted: %f  \tActual: %f\t\t", MatE[x], real_prices_m[x]);
+		}
+		else {
+			printf("Predicted: %f  \tActual: %f\t\t", MatE[x], real_prices_m[x]);
+		}
+	}
+	printf("\n");
+	printf("Best fit calculation time: %f\n", time);
+	printf("Average error: %f\n", sum);
+	printf("RMSE: %f\n\n\n", sum_s);
+
+	//for (x = 0; x < 60; x++) {
+		//printf("Errors between %d0000 and %d0000: %d\n", x, x + 1, error_hist[x]);
+	//}
+	//printf("Errors over 600000: %d\n", out_of_range);
+	//printf("\n");
 
 	// wait for input to close
 	printf("End of test. Press Enter to close...\n");
