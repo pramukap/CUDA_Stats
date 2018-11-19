@@ -1,4 +1,4 @@
-#include "University_Data.h"
+#include "large_cluster.h"
 #include "time.h"
 #include "kmeans.cu"
 
@@ -8,8 +8,8 @@ void run_uni_data_test(int size){
     double cpu_time_used;
 
     int m = size;
-    int n = 17;
-    int k = 2;
+    int n = 2;
+    int k = 10;
     int iterations = 10;
 
     double* centroids = (double*) malloc(k*n*sizeof(double));
@@ -24,10 +24,12 @@ void run_uni_data_test(int size){
 
 int main(void){
 
+    printf("Timing for ITR: 10, K = 10, N = 10, varying num observations\n");
+    printf("------------------------------------------------------------\n");
     run_uni_data_test(10);
     run_uni_data_test(100);
     run_uni_data_test(1000);
-    run_uni_data_test(10000);
+    run_uni_data_test(5000);
 
     return 0;
 }
