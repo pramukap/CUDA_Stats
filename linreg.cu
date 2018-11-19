@@ -342,6 +342,8 @@ int main()
 	int Csize = (AX + 1) * sizeof(double);
 	int CarrSize = AX + 1;
 	double * MatC = (double *)malloc(Csize);
+	double * MatC2 = (double *)malloc(Csize);
+	double * MatC3 = (double *)malloc(Csize);
 	double * MatD = (double *)malloc(test_size * AX * sizeof(double));
 	double * MatE = (double *)malloc(test_size * sizeof(double));
 	double * MatE2 = (double *)malloc(test_size * sizeof(double));
@@ -357,18 +359,18 @@ int main()
 	// Test with 10 training observations
 	// Fit a line to the training data
 	start = clock();
-	get_beta(MatA3, MatB3, MatC, AX, (AY / 100), 0.0655);
+	get_beta(MatA3, MatB3, MatC3, AX, (AY / 100), 0.0655);
 	end = clock();
 	time3 = ((double)(end - start)) / CLOCKS_PER_SEC;
 	// Apply the beta vector to the input data to get the predicted values
-	linreg(MatD, MatC, MatE3, AX, test_size);
+	linreg(MatD, MatC3, MatE3, AX, test_size);
 	
 	// Test with 100 training observations
 	start = clock();
-	get_beta(MatA2, MatB2, MatC, AX, (AY / 10), 0.0655);
+	get_beta(MatA2, MatB2, MatC2, AX, (AY / 10), 0.0655);
 	end = clock();
 	time2 = ((double)(end - start)) / CLOCKS_PER_SEC;
-	linreg(MatD, MatC, MatE2, AX, test_size);
+	linreg(MatD, MatC2, MatE2, AX, test_size);
 
 	// Test with 1000 training observations
 	start = clock();
@@ -438,6 +440,11 @@ int main()
 
 	// Print 10 element test report
 	printf("Results for 10 element test:\n\n");
+	printf("Beta = \n");
+	for (x = 0; x < (AX + 1); x++) {
+		printf("%f\n", MatC3[x]);
+	}
+	printf("\n");
 	for (x = 0; x < test_size; x++) {
 		if (x % 2 == 0 && x != 0) {
 			printf("\n");
@@ -454,6 +461,11 @@ int main()
 
 	// Print 100 element test report
 	printf("Results for 100 element test:\n\n");
+	printf("Beta = \n");
+	for (x = 0; x < (AX + 1); x++) {
+		printf("%f\n", MatC2[x]);
+	}
+	printf("\n");
 	for (x = 0; x < test_size; x++) {
 		if (x % 2 == 0 && x != 0) {
 			printf("\n");
@@ -470,6 +482,11 @@ int main()
 
 	// Print 1000 element test report
 	printf("Results for 1000 element test:\n\n");
+	printf("Beta = \n");
+	for (x = 0; x < (AX + 1); x++) {
+		printf("%f\n", MatC[x]);
+	}
+	printf("\n");
 	for (x = 0; x < test_size; x++) {
 		if (x % 2 == 0 && x != 0) {
 			printf("\n");
