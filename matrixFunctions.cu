@@ -190,6 +190,7 @@ __global__ void AppendOne(double* src, double* dst, int num_row, int num_col) {
 // C is a vector with Ax elements
 // O(Ay) time
 // O(Ax * Ay) work
+extern "C" {
 void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda) {
 	int x;
 	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
@@ -312,7 +313,6 @@ void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 // X is the number of features in the dataset.
 // Y is the number of elements in the training set. should be less than 1024
 // Yt is the number of elements in the test set
-extern "C" {
 	void linreg_test(double * training_set, double * known_values, double * test_set, double * test_values, int X, int Y, int Yt)
 	{
 		int AX = X;
