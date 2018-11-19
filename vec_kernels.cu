@@ -5,6 +5,23 @@
 #include    <cmath>
 
 __global__
+void	vec_dot_mat(double *X, double *y, double *out, size_t m, size_t n)
+{
+	size_t row_idx = threadIdx.x + blockDim.x * blockIdx.x;
+
+	if (row_idx >= m)
+		return;
+
+	out[row_idx] = 0.0;
+	double accum = 0.0;
+	for (size_t i = 0; i < n; i++) {
+		accum += X[row_idx * n + i] * y[i];
+	}
+	out[row_idx] = accum;
+}
+
+
+__global__
 void    vec_add(double *a, double *b, double *out, size_t stride, size_t n)
 {
     size_t tid = threadIdx.x;
