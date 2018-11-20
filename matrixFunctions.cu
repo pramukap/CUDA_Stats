@@ -100,7 +100,7 @@ __global__ void MatrixAdd(double * A, double * B, double * C) {
 // stores result in B
 // O(1) time
 // O(Ax * Ay) work
-__device__ void MatrixSMul(double * A, double * B, double scalar) {
+__global__ void MatrixSMul(double * A, double * B, double scalar) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	B[x] = A[x] * scalar;
 }
