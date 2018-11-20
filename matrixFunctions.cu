@@ -1,9 +1,10 @@
 #include "cuda_runtime.h"
+#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
-#include "house_med.h"
 #include "time.h"
 #include "math.h"
+#include "house_med.h"
 
 // inverts a matrix A by turning first N columns of A|I into RREF
 // # threads = 2N
@@ -100,7 +101,7 @@ __global__ void MatrixAdd(double * A, double * B, double * C) {
 // stores result in B
 // O(1) time
 // O(Ax * Ay) work
-__device__ void MatrixSMul(double * A, double * B, double scalar) {
+__global__ void MatrixSMul(double * A, double * B, double scalar) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	B[x] = A[x] * scalar;
 }
@@ -189,6 +190,7 @@ __global__ void AppendOne(double* src, double* dst, int num_row, int num_col) {
 // C is a vector with Ax elements
 // O(Ay) time
 // O(Ax * Ay) work
+extern "C" {
 void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda) {
 	int x;
 	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
@@ -304,217 +306,203 @@ void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 	cudaFree(MatC_d);
 }
 
-void linreg_test()
-{
+// Training set is the data the line will be fit to
+// Known values corrospond to the training set
+// Test set will be used to test the line of best fit
+// Test values are the actual values of the test set
+// X is the number of features in the dataset.
+// Y is the number of elements in the training set. should be less than 1024
+// Yt is the number of elements in the test set
+	void linreg_test(double * training_set, double * known_values, double * test_set, double * test_values, int X, int Y, int Yt)
+	{
+		int AX = X;
+		int AY = Y;
+		int BX = 1;
+		int BY = Y;
 
-	// define matrix size. could be input?
-	int AX = 8;
-	int AY = 1000;
-	int BX = 1;
-	int BY = 1000;
+		// Training data arrays
+		int Asize = AX * AY * sizeof(double);
+		int A2size = AX * (AY / 10) * sizeof(double);
+		int A3size = AX * (AY / 100) * sizeof(double);
+		int AarrSize = AX * AY;
+		double * MatA = (double *)malloc(Asize);
+		double * MatA2 = (double *)malloc(A2size);
+		double * MatA3 = (double *)malloc(A3size);
+		memcpy(MatA, training_set, Asize);
+		memcpy(MatA2, training_set, A2size);
+		memcpy(MatA3, training_set, A3size);
 
-	// Training data arrays
-	int Asize = AX * AY * sizeof(double);
-	int A2size = AX * (AY / 10) * sizeof(double);
-	int A3size = AX * (AY / 100) * sizeof(double);
-	int AarrSize = AX * AY;
-	double * MatA = (double *)malloc(Asize);
-	double * MatA2 = (double *)malloc(A2size);
-	double * MatA3 = (double *)malloc(A3size);
-	memcpy(MatA, houses_m, Asize);
-	memcpy(MatA2, houses_m, A2size);
-	memcpy(MatA3, houses_m, A3size);
+		// Known price arrays
+		int Bsize = BX * BY * sizeof(double);
+		int B2size = BX * (BY / 10) * sizeof(double);
+		int B3size = BX * (BY / 100) * sizeof(double);
+		int BarrSize = BX * BY;
+		double * MatB = (double *)malloc(Bsize);
+		double * MatB2 = (double *)malloc(Bsize);
+		double * MatB3 = (double *)malloc(Bsize);
+		memcpy(MatB, known_values, Bsize);
+		memcpy(MatB2, known_values, B2size);
+		memcpy(MatB3, known_values, B3size);
 
-	// Known price arrays
-	int Bsize = BX * BY * sizeof(double);
-	int B2size = BX * (BY / 10) * sizeof(double);
-	int B3size = BX * (BY / 100) * sizeof(double);
-	int BarrSize = BX * BY;
-	double * MatB = (double *)malloc(Bsize);
-	double * MatB2 = (double *)malloc(Bsize);
-	double * MatB3 = (double *)malloc(Bsize);
-	memcpy(MatB, prices_m, Bsize);
-	memcpy(MatB2, prices_m, B2size);
-	memcpy(MatB3, prices_m, B3size);
+		// Output Arrays
+		int Csize = (AX + 1) * sizeof(double);
+		int CarrSize = AX + 1;
+		double * MatC = (double *)malloc(Csize);
+		double * MatC2 = (double *)malloc(Csize);
+		double * MatC3 = (double *)malloc(Csize);
+		double * MatD = (double *)malloc(Yt * AX * sizeof(double));
+		double * MatE = (double *)malloc(Yt * sizeof(double));
+		double * MatE2 = (double *)malloc(Yt * sizeof(double));
+		double * MatE3 = (double *)malloc(Yt * sizeof(double));
+		memcpy(MatD, test_set, Yt * AX * sizeof(double));
 
-	// Output Arrays
-	int Csize = (AX + 1) * sizeof(double);
-	int CarrSize = AX + 1;
-	double * MatC = (double *)malloc(Csize);
-	double * MatC2 = (double *)malloc(Csize);
-	double * MatC3 = (double *)malloc(Csize);
-	double * MatD = (double *)malloc(test_size * AX * sizeof(double));
-	double * MatE = (double *)malloc(test_size * sizeof(double));
-	double * MatE2 = (double *)malloc(test_size * sizeof(double));
-	double * MatE3 = (double *)malloc(test_size * sizeof(double));
-	memcpy(MatD, test_houses_m, test_size * AX * sizeof(double));
+		// Set up timing variables
+		clock_t start, end;
+		double time3, time2, time;
 
-	// Set up timing variables
-	clock_t start, end;
-	double time3, time2, time;
+		int x;
 
-	int x;
+		// Test with 10 training observations
+		// Fit a line to the training data
+		start = clock();
+		get_beta(MatA3, MatB3, MatC3, AX, (AY / 100), 0.0655);
+		end = clock();
+		time3 = ((double)(end - start)) / CLOCKS_PER_SEC;
+		// Apply the beta vector to the input data to get the predicted values
+		linreg(MatD, MatC3, MatE3, AX, Yt);
 
-	// Test with 10 training observations
-	// Fit a line to the training data
-	start = clock();
-	get_beta(MatA3, MatB3, MatC3, AX, (AY / 100), 0.0655);
-	end = clock();
-	time3 = ((double)(end - start)) / CLOCKS_PER_SEC;
-	// Apply the beta vector to the input data to get the predicted values
-	linreg(MatD, MatC3, MatE3, AX, test_size);
+		// Test with 100 training observations
+		start = clock();
+		get_beta(MatA2, MatB2, MatC2, AX, (AY / 10), 0.0655);
+		end = clock();
+		time2 = ((double)(end - start)) / CLOCKS_PER_SEC;
+		linreg(MatD, MatC2, MatE2, AX, Yt);
 
-	// Test with 100 training observations
-	start = clock();
-	get_beta(MatA2, MatB2, MatC2, AX, (AY / 10), 0.0655);
-	end = clock();
-	time2 = ((double)(end - start)) / CLOCKS_PER_SEC;
-	linreg(MatD, MatC2, MatE2, AX, test_size);
+		// Test with 1000 training observations
+		start = clock();
+		get_beta(MatA, MatB, MatC, AX, AY, 0.0655);
+		end = clock();
+		time = ((double)(end - start)) / CLOCKS_PER_SEC;
+		linreg(MatD, MatC, MatE, AX, Yt);
 
-	// Test with 1000 training observations
-	start = clock();
-	get_beta(MatA, MatB, MatC, AX, AY, 0.0655);
-	end = clock();
-	time = ((double)(end - start)) / CLOCKS_PER_SEC;
-	linreg(MatD, MatC, MatE, AX, test_size);
+		// Print test reports
+		double to_add, to_add2, to_add3;
+		double sum = 0;
+		double sum2 = 0;
+		double sum3 = 0;
+		double sum_s = 0;
+		double sum_s2 = 0;
+		double sum_s3 = 0;
 
-	// Print test reports
-	double to_add, to_add2, to_add3;
-	int add_index;
-	int out_of_range = 0;
-	int error_hist[60];
-	for (x = 0; x < 60; x++) {
-		error_hist[x] = 0;
+		// Calculate errors
+		for (x = 0; x < Yt; x++) {
+			// get the error
+			to_add = (MatE[x] - test_values[x]);
+			to_add2 = (MatE2[x] - test_values[x]);
+			to_add3 = (MatE3[x] - test_values[x]);
+
+			// absolute value
+			if (to_add < 0) {
+				to_add = to_add * -1;
+			}
+			if (to_add2 < 0) {
+				to_add2 = to_add2 * -1;
+			}
+			if (to_add3 < 0) {
+				to_add3 = to_add3 * -1;
+			}
+
+			// update the sum and sum of squares
+			sum += to_add;
+			sum2 += to_add2;
+			sum3 += to_add3;
+			sum_s += (to_add * to_add);
+			sum_s2 += (to_add2 * to_add2);
+			sum_s3 += (to_add3 * to_add3);
+		}
+		// calculate average error
+		sum = sum / Yt;
+		sum2 = sum2 / Yt;
+		sum3 = sum3 / Yt;
+		// calculate RMSE
+		sum_s = sqrt(sum_s / Yt);
+		sum_s2 = sqrt(sum_s2 / Yt);
+		sum_s3 = sqrt(sum_s3 / Yt);
+
+		// Print 10 element test report
+		printf("Results for %d element test:\n\n", (AY / 100));
+		printf("Beta = \n");
+		for (x = 0; x < (AX + 1); x++) {
+			printf("%f\n", MatC3[x]);
+		}
+		printf("\n");
+		for (x = 0; x < Yt; x++) {
+			if (x % 2 == 0 && x != 0) {
+				printf("\n");
+				printf("Predicted: %f  \tActual: %f\t\t", MatE3[x], test_values[x]);
+			}
+			else {
+				printf("Predicted: %f  \tActual: %f\t\t", MatE3[x], test_values[x]);
+			}
+		}
+		printf("\n");
+		printf("Best fit calculation time: %f\n", time3);
+		printf("Average error: %f\n", sum3);
+		printf("RMSE: %f\n\n\n", sum_s3);
+
+		// Print 100 element test report
+		printf("Results for %d element test:\n\n", (AY / 10));
+		printf("Beta = \n");
+		for (x = 0; x < (AX + 1); x++) {
+			printf("%f\n", MatC2[x]);
+		}
+		printf("\n");
+		for (x = 0; x < Yt; x++) {
+			if (x % 2 == 0 && x != 0) {
+				printf("\n");
+				printf("Predicted: %f  \tActual: %f\t\t", MatE2[x], test_values[x]);
+			}
+			else {
+				printf("Predicted: %f  \tActual: %f\t\t", MatE2[x], test_values[x]);
+			}
+		}
+		printf("\n");
+		printf("Best fit calculation time: %f\n", time2);
+		printf("Average error: %f\n", sum2);
+		printf("RMSE: %f\n\n\n", sum_s2);
+
+		// Print 1000 element test report
+		printf("Results for %d element test:\n\n", AY);
+		printf("Beta = \n");
+		for (x = 0; x < (AX + 1); x++) {
+			printf("%f\n", MatC[x]);
+		}
+		printf("\n");
+		for (x = 0; x < Yt; x++) {
+			if (x % 2 == 0 && x != 0) {
+				printf("\n");
+				printf("Predicted: %f  \tActual: %f\t\t", MatE[x], test_values[x]);
+			}
+			else {
+				printf("Predicted: %f  \tActual: %f\t\t", MatE[x], test_values[x]);
+			}
+		}
+		printf("\n");
+		printf("Best fit calculation time: %f\n", time);
+		printf("Average error: %f\n", sum);
+		printf("RMSE: %f\n\n\n", sum_s);
+
+		// free resources
+		free(MatA);
+		free(MatB);
+		free(MatC);
+		free(MatD);
+		free(MatE);
+
 	}
-	double sum = 0;
-	double sum2 = 0;
-	double sum3 = 0;
-	double sum_s = 0;
-	double sum_s2 = 0;
-	double sum_s3 = 0;
+}
 
-	// Calculate errors
-	for (x = 0; x < test_size; x++) {
-		// get the error
-		to_add = (MatE[x] - real_prices_m[x]);
-		to_add2 = (MatE2[x] - real_prices_m[x]);
-		to_add3 = (MatE3[x] - real_prices_m[x]);
-
-		// absolute value
-		if (to_add < 0) {
-			to_add = to_add * -1;
-		}
-		if (to_add2 < 0) {
-			to_add2 = to_add2 * -1;
-		}
-		if (to_add3 < 0) {
-			to_add3 = to_add3 * -1;
-		}
-
-		// update histogram for 1000 element test
-		add_index = (int)(to_add / 10000);
-		if (add_index >= 60) {
-			out_of_range++;
-		}
-		else {
-			error_hist[add_index]++;
-		}
-
-		// update the sum and sum of squares
-		sum += to_add;
-		sum2 += to_add2;
-		sum3 += to_add3;
-		sum_s += (to_add * to_add);
-		sum_s2 += (to_add2 * to_add2);
-		sum_s3 += (to_add3 * to_add3);
-	}
-	// calculate average error
-	sum = sum / test_size;
-	sum2 = sum2 / test_size;
-	sum3 = sum3 / test_size;
-	// calculate RMSE
-	sum_s = sqrt(sum_s / test_size);
-	sum_s2 = sqrt(sum_s2 / test_size);
-	sum_s3 = sqrt(sum_s3 / test_size);
-
-	// Print 10 element test report
-	printf("Results for 10 element test:\n\n");
-	printf("Beta = \n");
-	for (x = 0; x < (AX + 1); x++) {
-		printf("%f\n", MatC3[x]);
-	}
-	printf("\n");
-	for (x = 0; x < test_size; x++) {
-		if (x % 2 == 0 && x != 0) {
-			printf("\n");
-			printf("Predicted: %f  \tActual: %f\t\t", MatE3[x], real_prices_m[x]);
-		}
-		else {
-			printf("Predicted: %f  \tActual: %f\t\t", MatE3[x], real_prices_m[x]);
-		}
-	}
-	printf("\n");
-	printf("Best fit calculation time: %f\n", time3);
-	printf("Average error: %f\n", sum3);
-	printf("RMSE: %f\n\n\n", sum_s3);
-
-	// Print 100 element test report
-	printf("Results for 100 element test:\n\n");
-	printf("Beta = \n");
-	for (x = 0; x < (AX + 1); x++) {
-		printf("%f\n", MatC2[x]);
-	}
-	printf("\n");
-	for (x = 0; x < test_size; x++) {
-		if (x % 2 == 0 && x != 0) {
-			printf("\n");
-			printf("Predicted: %f  \tActual: %f\t\t", MatE2[x], real_prices_m[x]);
-		}
-		else {
-			printf("Predicted: %f  \tActual: %f\t\t", MatE2[x], real_prices_m[x]);
-		}
-	}
-	printf("\n");
-	printf("Best fit calculation time: %f\n", time2);
-	printf("Average error: %f\n", sum2);
-	printf("RMSE: %f\n\n\n", sum_s2);
-
-	// Print 1000 element test report
-	printf("Results for 1000 element test:\n\n");
-	printf("Beta = \n");
-	for (x = 0; x < (AX + 1); x++) {
-		printf("%f\n", MatC[x]);
-	}
-	printf("\n");
-	for (x = 0; x < test_size; x++) {
-		if (x % 2 == 0 && x != 0) {
-			printf("\n");
-			printf("Predicted: %f  \tActual: %f\t\t", MatE[x], real_prices_m[x]);
-		}
-		else {
-			printf("Predicted: %f  \tActual: %f\t\t", MatE[x], real_prices_m[x]);
-		}
-	}
-	printf("\n");
-	printf("Best fit calculation time: %f\n", time);
-	printf("Average error: %f\n", sum);
-	printf("RMSE: %f\n\n\n", sum_s);
-
-	//for (x = 0; x < 60; x++) {
-		//printf("Errors between %d0000 and %d0000: %d\n", x, x + 1, error_hist[x]);
-	//}
-	//printf("Errors over 600000: %d\n", out_of_range);
-	//printf("\n");
-
-	// wait for input to close
-	printf("End of test. Press Enter to close...\n");
-	getchar();
-
-	// free resources
-	free(MatA);
-	free(MatB);
-	free(MatC);
-	free(MatD);
-	free(MatE);
-
+int main() {
+	linreg_test(houses_m, prices_m, test_houses_m, real_prices_m, features, training_size, test_size);
+	return 0;
 }

@@ -14,4 +14,4 @@ __global__ void MatrixInverse(double *A, int Ax, int Ay);
 
 void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda);
 void linreg(double * A, double * B, double * C, int Ax, int Ay);
-void linreg_test(void);
+void linreg_test(double * training_set, double * known_values, double * test_set, double * test_values, int X, int Y, int Yt);
