@@ -2,7 +2,6 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <stdio.h>
-#include "house_med.h"
 #include "time.h"
 #include "math.h"
 
