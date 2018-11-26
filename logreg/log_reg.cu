@@ -92,9 +92,8 @@ void    fit(double *X, double *y, double *theta, double lr, size_t m, size_t n, 
     cudaFree(thetad);
 }
 
-double*    predict_proba(double *X, double *theta, size_t m, size_t n)
+void    predict_proba(double *X, double *theta, double *y, size_t m, size_t n)
 {
-    double *y = (double*) malloc(sizeof(double) * m);
     double *yd;
     double *Xd;
     double *thetad;

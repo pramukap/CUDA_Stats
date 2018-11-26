@@ -54,26 +54,29 @@ class LogisticRegression:
         self.verbose = verbose
         self.lib = ctypes.CDLL(LIBPATH, mode=ctypes.RTLD_GLOBAL)
     
-    def __add_intercept(self, X):
-        pass
-
-    def __sigmoid(self, z):
-        func = self.lib.vec_sigmoid
-        func.argtypes = [POINTER(c_double), POINTER(c_double), c_size_t, c_size_t]
-        ret_val = np.zeros(z.shape)
-        z_p = z.ctypes.data_as(POINTER(c_double))
-        ret_val_p = ret_val.ctypes.data_as(POINTER(c_double))
-        func(z_p, ret_val_p, 1, len(z))
-        return ret_val
-    
-    def __loss(self, h, y):
-        pass
-
     def fit(self, X, y):
-        pass
-    
+        assert X.shape[0] == y.shape[0], "Dimensions do not match"
+        func = self.lib.fit
+        func.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), c_double, c_size_t, c_size_t, c_size_t]
+
+        Xp = X.ctypes.data_as(POINTER(c_double))
+        yp = y.ctypes.data_as(POINTER(c_double))
+        thetap = self.theta.ctypes.data_as(POINTER(c_double))
+
+        func(Xp, yp, thetap, self.lr, X.shape[0], X.shape[1], self.n_iter)
+
     def predict_prob(self, X):
-        pass
+        assert X.shape[1] == self.theta.shape[0], "Dimensions do not match"
+        func = self.lib.predict_proba
+        func.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), c_size_t, c_size_t]
+
+        y = np.zeros(X.shape[0]).astype('float64')
+
+        Xp = X.ctypes.data_as(POINTER(c_double))
+        yp = y.ctypes.data_as(POINTER(c_double))
+        thetap = self.theta.ctypes.data_as(POINTER(c_double))
+        func(Xp, thetap, yp, X.shape[0], X.shape[1])
+        return y
     
     def predict(self, X, threshold=0.5):
         return self.predict_prob(X) >= threshold
