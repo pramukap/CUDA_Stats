@@ -1,6 +1,5 @@
 #include    "cuda_runtime.h"
 #include    "vec_kernels.cuh"
-#include	"matrixFunctions.cuh"
 #include    "math.h" 
 
 #include    <cstddef>
@@ -103,7 +102,7 @@ void    predict_proba(double *X, double *theta, double *y, size_t m, size_t n)
     cudaMemcpy((void*) Xd, (void*) X, sizeof(double) * m * n, cudaMemcpyHostToDevice);
     cudaMemcpy((void*) thetad, (void*) theta, sizeof(double) * n, cudaMemcpyHostToDevice);
 
-    MatrixMul<<<m, n>>>(Xd, thetad, yd, n, m, 1, n);
+    //MatrixMul<<<m, n>>>(Xd, thetad, yd, n, m, 1, n);
     cudaDeviceSynchronize();
 
     cudaMemcpy((void*) y, yd, sizeof(double) * m, cudaMemcpyDeviceToHost);
