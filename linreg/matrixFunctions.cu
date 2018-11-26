@@ -185,11 +185,13 @@ __global__ void AppendOne(double* src, double* dst, int num_row, int num_col) {
 
 // takes an array of doubles and its dimensions as input
 // sets the array to (((A^t)(A))^-1)(A^t)B
-// where A is a matrix with Ay elements each having Ax features
+// where A is an array of doubles size Ay (observations) * Ax (features)
 // and B is a vector containing Ay elements
-// C is a vector with Ax elements
+// C is the output array of doubles size with Ax + 1. must be allocated before.
+// Lambda is the value used for regularization
 // O(Ay) time
 // O(Ax * Ay) work
+// "fit"
 extern "C" {
 void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda) {
 	int x;
@@ -261,11 +263,12 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 }
 
 // Performs matrix multiplication on A and B
-// A a matrix of known values with Ay rows and Ax columns
-// B is the beta vector with Ax values
-// C is the output vector with Ay values
+// A is an array of known values of doubles with Ay rows and Ax columns
+// B is an array with Ax doubles. Beta vector
+// C is the output array of Ay doubles. must be allocated before
 // O(Ax) time
 // O(Ax * Ay) work
+// "predict"
 void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 	double * MatA = (double *)malloc(Ax * Ay * sizeof(double));
 	double * MatA1 = (double *)malloc((Ax + 1) * Ay * sizeof(double));
