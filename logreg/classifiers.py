@@ -47,7 +47,7 @@ class PyLogisticRegression:
         return self.predict_prob(X) >= threshold
 
 class LogisticRegression:
-    def init(self, lr=0.01, n_iter=100000, fit_intercept=True, verbose=False):
+    def __init__(self, lr=0.01, n_iter=100000, fit_intercept=True, verbose=False):
         self.lr = lr
         self.n_iter = n_iter
         self.fit_intercept = fit_intercept
@@ -56,6 +56,8 @@ class LogisticRegression:
     
     def fit(self, X, y):
         assert X.shape[0] == y.shape[0], "Dimensions do not match"
+        if not hasattr(self, 'theta'):
+            self.theta = np.zeros(X.shape[1]).astype('float64')
         func = self.lib.fit
         func.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), c_double, c_size_t, c_size_t, c_size_t]
 
