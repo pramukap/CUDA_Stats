@@ -10,16 +10,27 @@
 #define     BLOCKSIZE       1024
 #define     GRIDSIZE(d)     (((d) + ((BLOCKSIZE) - 1)) / (BLOCKSIZE))
 
+__global__
+void    mat_transpose(double *X, double *Xt, size_t m, size_t n) 
+{
+    size_t gid = threadIdx.x + blockIdx.x * blockDim.x;
+    if (gid >= m*n)
+        return;
+    
+    size_t row = gid / n;
+    size_t col = gid % n;
+    Xt[col * m + row] = X[row * n + col];
+}
 
 extern "C"
 {
 
-void    fit(double *X, double *y, double *theta, double lr, size_t n, size_t m, size_t n_iter) 
+void    fit(double *X, double *y, double *theta, double lr, size_t m, size_t n, size_t n_iter) 
 {
-    double *Xt, *Xd = X, *yd = y, *thetad = theta;
+    double *Xt, *Xd, *yd, *thetad;
     
-    cudaMallocManaged(&Xt, sizeof(double) * n * m);
-    /*
+    cudaMalloc(&Xt, sizeof(double) * n * m);
+    
     cudaMalloc(&Xd, sizeof(double) * n * m);
     cudaMemcpy(Xd, X, sizeof(double) * n * m, cudaMemcpyHostToDevice);
     
@@ -28,8 +39,8 @@ void    fit(double *X, double *y, double *theta, double lr, size_t n, size_t m, 
     
     cudaMalloc(&thetad, sizeof(double) * n);
     cudaMemcpy(thetad, theta, sizeof(double) * n, cudaMemcpyHostToDevice);
-    */
-    MatrixTranspose<<<n, m>>>(Xd, Xt, m, n);
+    
+    mat_transpose<<<GRIDSIZE(m*n), BLOCKSIZE>>>(X, Xt, m, n);
     cudaDeviceSynchronize();
 
     for (size_t i = 0; i < n_iter; i++) {
@@ -38,24 +49,34 @@ void    fit(double *X, double *y, double *theta, double lr, size_t n, size_t m, 
         cudaMallocManaged(&h, sizeof(double) * m);
         cudaMallocManaged(&g, sizeof(double) * n);
 
+        // dot(X, theta)
         vec_dot_mat<<<GRIDSIZE(m), BLOCKSIZE>>>(X, theta, z, m, n);
         cudaDeviceSynchronize();
 
-        vec_sigmoid<<<GRIDSIZE(n), BLOCKSIZE>>>(z, h, 1, m);
+        // h = sigm(z)
+        vec_sigmoid<<<GRIDSIZE(m), BLOCKSIZE>>>(z, h, 1, m);
         cudaDeviceSynchronize();
 
-        vec_scalar_mul<<<GRIDSIZE(n), BLOCKSIZE>>>(h, h, -1.0, 1, m);
+        // h = -h
+        vec_scalar_mul<<<GRIDSIZE(m), BLOCKSIZE>>>(h, h, -1.0, 1, m);
         cudaDeviceSynchronize();
 
-        vec_add<<<GRIDSIZE(n), BLOCKSIZE>>>(h, y, h, 1, m);
+        // h = y - h
+        vec_add<<<GRIDSIZE(m), BLOCKSIZE>>>(h, y, h, 1, m);
         cudaDeviceSynchronize();
 
+        // h = -(y - h) = h - y
+        vec_scalar_mul<<<GRIDSIZE(m), BLOCKSIZE>>>(h, h, -1.0, 1, m); 
+
+        // g = dot(Xt, h)
         vec_dot_mat<<<GRIDSIZE(n), BLOCKSIZE>>>(Xt, h, g, n, m);
         cudaDeviceSynchronize();
 
-        vec_scalar_mul<<<GRIDSIZE(n), BLOCKSIZE>>>(g, g, -lr / m, 1, n);
+        // g = -(g*lr) / m
+        vec_scalar_mul<<<GRIDSIZE(n), BLOCKSIZE>>>(g, g, -(lr / m), 1, n);
         cudaDeviceSynchronize();
 
+        // theta = theta + (-g) = theta - g
         vec_add<<<GRIDSIZE(n), BLOCKSIZE>>>(theta, g, theta, 1, n);
         cudaDeviceSynchronize();
 
