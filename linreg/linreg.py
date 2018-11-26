@@ -4,7 +4,7 @@ import numpy as np
 
 LIBPATH='./lin_reg.so'
 
-def LinearRegression(object):
+class LinearRegression(object):
     def __init__(self, l=0.0655):
         self.lib = ctypes.cdll.LoadLibrary(LIBPATH)
         self.l = l
@@ -20,8 +20,8 @@ def LinearRegression(object):
         func.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), c_int, c_int, c_double]
 
         Xp = X.ctypes.data_as(POINTER(c_double))
-        yp = yp.ctypes.data_as(POINTER(c_double))
-        cp = coeffs.ctypes.data_as(POINTER(c_double))
+        yp = y.ctypes.data_as(POINTER(c_double))
+        cp = self.coeffs.ctypes.data_as(POINTER(c_double))
 
         func(Xp, yp, cp, X.shape[1], X.shape[0], self.l)
     
@@ -30,7 +30,7 @@ def LinearRegression(object):
         assert X.shape[1] == self.coeffs.shape[0], 'Dimensions do not match'
 
         func = self.lib.linreg
-        func.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), X.shape[1], X.shape[0]]
+        func.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), c_int, c_int]
 
         y = np.zeros(X.shape[0]).astype('float64')
 
