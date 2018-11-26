@@ -1,13 +1,18 @@
 #include "kmeansHelper.cu"
 //#include "University_Data.h"
-//#include "Iris_Data.h"
-#include "large_cluster.h"
+#include "Iris_Data.h"
+//#include "large_cluster.h"
 #include "cuda_runtime.h"
 #include <stdio.h>
 
+extern "C" void kmeans(double* data, int m, int n, int k, double* centroids, int iterations);
+
+extern "C" {
 // Assume data is filled
 // Assume centroids is allocated
 void kmeans(double* data, int m, int n, int k, double* centroids, int iterations){
+
+    printf("RUNNING KMEANS: (%dx%d) for %d clusters using %d itr\n", m, n, k, iterations);
 
     double *data_d;
     double *centroids_d;
@@ -29,6 +34,11 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
     cudaMemcpy(data_d, data, m*n*sizeof(double), cudaMemcpyHostToDevice);
 
+    for(int i = 0; i < m*n; i++){
+        printf("%f\t", data[i]);
+    }
+
+
     // Initalize centroids using random partition of data into k groups
     init_labels<<<m, 1>>>(labels, k);
     init_zeros<<<k, 1>>>(counts);
@@ -37,16 +47,22 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
     findNewCentroids<<<m, n>>>(data_d, centroids_d, labels, m, n, k, counts);
     divide_by_count<<<k, n>>>(centroids_d, counts, n, k);
 
+
     // Set number of iterations
     for(int step__ = 0; step__ < iterations; step__++){
 
+        cudaMemcpy(centroids, centroids_d, k*n*sizeof(double), cudaMemcpyDeviceToHost);
+        for(int i = 0; i < k*n; i++){
+            printf("%f\t",centroids[i]);
+        }
+        printf("\n\n");
+/*
         // Assignment Step
         init_zeros<<<m, 1>>>(distances);
         assignClasses<<<m, 1>>>(data_d, centroids_d, m, n, k, labels, distances);
 
-
+*/
         // OLD ASSIGNMENT
-        /*
         for(int point = 0; point < m; point++){
 
             subtractPointFromMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
@@ -55,8 +71,6 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
             addPointToMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
 
         }
-        */
-
         // Update Means Step
         init_zeros<<<k, 1>>>(counts);
         init_zeros<<<k, n>>>(new_mean);
@@ -85,7 +99,19 @@ void kmeans_classify(double * centroids, double * data, int *labels_h, int m, in
     double *centroids_d;
     int *labels;
     double *distances;
+/*
+    printf("RUNNING CLASSIFY m%d\tn%d\tk%d\t\n", m, n, k);
 
+    for(int i = 0; i < k*n; i++){
+        printf("%f\t",centroids[i]);
+    }
+    for(int i = 0; i < m*n; i++){
+        printf("%f\t",data[i]);
+    }
+    for(int i = 0; i < m; i++){
+        printf("%d\t",labels_h[i]);
+    }
+*/
     cudaMalloc((void**)&data_d, m*n*sizeof(double));
     cudaMalloc((void**)&centroids_d, k*n*sizeof(double));
     cudaMalloc((void**)&labels, m*sizeof(int));
@@ -94,16 +120,20 @@ void kmeans_classify(double * centroids, double * data, int *labels_h, int m, in
     cudaMemcpy(data_d, data, m*n*sizeof(double), cudaMemcpyHostToDevice);
     cudaMemcpy(centroids_d, centroids, k*n*sizeof(double), cudaMemcpyHostToDevice);
 
-    for(int point = 0; point < m; point++){
-        subtractPointFromMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
-        getDistances<<<k, 1>>>(centroids_d, distances, k, n);
-        assignClass<<<1, 1>>>(distances, labels, k, point);
-        addPointToMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
-    }
+    printf("RUNNING CLASSIFY\n");
+
+    // Assignment Step
+    init_zeros<<<m, 1>>>(distances);
+    assignClasses<<<m, 1>>>(data_d, centroids_d, m, n, k, labels, distances);
 
     cudaMemcpy(labels_h, labels, m*sizeof(int), cudaMemcpyDeviceToHost);
-}
 
+    for(int i = 0; i < m; i++){
+        printf("%d\t",labels_h[i]);
+    }
+
+}
+}
 void run_small_kmeans_test(){
 
     int m = 12;
@@ -115,6 +145,10 @@ void run_small_kmeans_test(){
     double* centroids = (double*) malloc(k*n*sizeof(double));
 
     kmeans(data, m, n, k, centroids, iterations);
+
+    for(int i = 0; i < k*n; i++){
+        printf("%f\n", centroids[i]);
+    }
 
 }
 
@@ -208,7 +242,7 @@ void run_iris_data_output(int itr_){
             }
         }}
     }
-/*    int *labels = (int *) malloc(sizeof(int) * m);
+    int *labels = (int *) malloc(sizeof(int) * m);
     kmeans_classify(centroids, data, labels, m, n, k);
     for(int i = 0; i < m; i++){
         if (i == m-1){
@@ -216,7 +250,7 @@ void run_iris_data_output(int itr_){
         } else{
         printf("%d,", labels[i]);
         }}
-*/
+
 
 }
 
@@ -249,6 +283,11 @@ void run_large_dataset(int m_){
 }
 
 int main(){
+    run_iris_data_output(20);
+    return 0;
+}
+/*
+int main(){
    
     
     run_large_dataset(10);
@@ -264,4 +303,4 @@ int main(){
    //     run_iris_data_output(i);
    // }
    return 0;
-} 
+}*/ 
