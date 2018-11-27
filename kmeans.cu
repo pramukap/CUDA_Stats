@@ -31,13 +31,13 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
     cudaMalloc((void**)&distances, k*sizeof(double));
     */
     cudaMalloc((void**)&distances, m*sizeof(double));
-
     cudaMemcpy(data_d, data, m*n*sizeof(double), cudaMemcpyHostToDevice);
 
+/*
     for(int i = 0; i < m*n; i++){
         printf("%f\t", data[i]);
     }
-
+*/
 
     // Initalize centroids using random partition of data into k groups
     init_labels<<<m, 1>>>(labels, k);
@@ -50,13 +50,13 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
 
     // Set number of iterations
     for(int step__ = 0; step__ < iterations; step__++){
-
+/*
         cudaMemcpy(centroids, centroids_d, k*n*sizeof(double), cudaMemcpyDeviceToHost);
         for(int i = 0; i < k*n; i++){
             printf("%f\t",centroids[i]);
         }
         printf("\n\n");
-
+*/
         // Assignment Step
         init_zeros<<<m, 1>>>(distances);
         assignClasses<<<m, 1>>>(data_d, centroids_d, m, n, k, labels, distances);
@@ -128,10 +128,10 @@ void kmeans_classify(double * centroids, double * data, int *labels_h, int m, in
 
     cudaMemcpy(labels_h, labels, m*sizeof(int), cudaMemcpyDeviceToHost);
 
-    for(int i = 0; i < m; i++){
+/*    for(int i = 0; i < m; i++){
         printf("%d\t",labels_h[i]);
     }
-
+*/
 }
 }
 void run_small_kmeans_test(){
