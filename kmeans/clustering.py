@@ -12,7 +12,7 @@ class KMeans:
         self.k_ = k
         self.itr_ = iterations
         self.centroids_ = None
-        self.dylib = ctypes.CDLL('./kmeans.so')
+        self.dylib = ctypes.CDLL('./obj/kmeans.so')
         print('initalized kmeans with k = ',k,', itr = ',iterations)
         self.timeflag = timing
 

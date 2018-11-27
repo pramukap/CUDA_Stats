@@ -1,9 +1,11 @@
 #include "kmeansHelper.cu"
-//#include "University_Data.h"
-#include "Iris_Data.h"
-//#include "large_cluster.h"
 #include "cuda_runtime.h"
 #include <stdio.h>
+
+// Datasets
+//#include "University_Data.h"
+//#include "Iris_Data.h"
+//#include "large_cluster.h"
 
 extern "C" void kmeans(double* data, int m, int n, int k, double* centroids, int iterations);
 
@@ -134,6 +136,8 @@ void kmeans_classify(double * centroids, double * data, int *labels_h, int m, in
 */
 }
 }
+
+/*
 void run_small_kmeans_test(){
 
     int m = 12;
@@ -178,7 +182,7 @@ void printConfusionMatrix(int *actual, int*expect){
     printf("TP: %d\nFP: %d\nFN: %d\nTN: %d\n", tp, fp, fn, tn);
 
 
-}
+}*/
 /*
 void run_uni_data_test(){
 
@@ -201,7 +205,7 @@ void run_uni_data_test(){
 
     printConfusionMatrix(labels, results);
 }*/
-
+/*
 void run_iris_data(int itr_){
 
     int m = 150;
@@ -286,7 +290,7 @@ int main(){
     run_iris_data_output(20);
     return 0;
 }
-/*
+
 int main(){
    
     
