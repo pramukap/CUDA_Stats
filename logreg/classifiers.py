@@ -58,15 +58,15 @@ class LogisticRegression:
     def fit(self, X, y):
         assert X.shape[0] == y.shape[0], "Dimensions do not match"
         if not hasattr(self, 'theta'):
-            self.theta = np.zeros(X.shape[1]).astype('float64')
+            self.theta = np.zeros(X.shape[1])
         func = self.lib.fit
-        func.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), c_double, c_size_t, c_size_t, c_size_t]
+        func.argtypes = [POINTER(c_double), POINTER(c_double), POINTER(c_double), c_double, c_size_t, c_size_t, c_size_t, c_bool]
 
         Xp = X.ctypes.data_as(POINTER(c_double))
         yp = y.ctypes.data_as(POINTER(c_double))
         thetap = self.theta.ctypes.data_as(POINTER(c_double))
 
-        func(Xp, yp, thetap, self.lr, X.shape[0], X.shape[1], self.n_iter)
+        func(Xp, yp, thetap, self.lr, X.shape[0], X.shape[1], self.n_iter, False)
 
     def predict_prob(self, X):
         assert X.shape[1] == self.theta.shape[0], "Dimensions do not match"

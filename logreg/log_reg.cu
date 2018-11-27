@@ -15,7 +15,7 @@
 extern "C"
 {
 
-void    fit(double *X, double *y, double *theta, double lr, size_t m, size_t n, size_t n_iter) 
+void    fit(double *X, double *y, double *theta, double lr, size_t m, size_t n, size_t n_iter, bool from_py) 
 {
     double *Xt, *Xd, *yd, *thetad;
     
@@ -35,44 +35,45 @@ void    fit(double *X, double *y, double *theta, double lr, size_t m, size_t n, 
 	cudaMalloc(&h, sizeof(double) * m);
 	cudaMalloc(&g, sizeof(double) * n);
     
-    mat_transpose<<<GRIDSIZE(m*n), BLOCKSIZE>>>(Xd, Xt, m, n);
-    cudaDeviceSynchronize();
+    if (from_py) {
+        cudaMemcpy(Xt, X, sizeof(double) * m * n, cudaMemcpyHostToDevice);
+
+        mat_transpose<<<GRIDSIZE(m*n), BLOCKSIZE>>>(Xd, Xd, n, m);
+        cudaDeviceSynchronize();
+    } else {
+        mat_transpose<<<GRIDSIZE(m*n), BLOCKSIZE>>>(Xd, Xt, m, n);
+        cudaDeviceSynchronize();
+    }
 
     for (size_t i = 0; i < n_iter; i++) {
 
         // dot(X, theta)
         vec_dot_mat<<<GRIDSIZE(m), BLOCKSIZE>>>(Xd, thetad, z, m, n);
-        cudaDeviceSynchronize();
 
         // h = sigm(z)
         vec_sigmoid<<<GRIDSIZE(m), BLOCKSIZE>>>(z, h, 1, m);
-        cudaDeviceSynchronize();
 
         // h = -h
         vec_scalar_mul<<<GRIDSIZE(m), BLOCKSIZE>>>(h, h, -1.0, 1, m);
-        cudaDeviceSynchronize();
 
         // h = y - h
         vec_add<<<GRIDSIZE(m), BLOCKSIZE>>>(h, yd, h, 1, m);
-        cudaDeviceSynchronize();
 
         // h = -(y - h) = h - y
         vec_scalar_mul<<<GRIDSIZE(m), BLOCKSIZE>>>(h, h, -1.0, 1, m); 
-        cudaDeviceSynchronize();
 
         // g = dot(Xt, h)
         vec_dot_mat<<<GRIDSIZE(n), BLOCKSIZE>>>(Xt, h, g, n, m);
-        cudaDeviceSynchronize();
+
 
         // g = -(g*lr) / m
         vec_scalar_mul<<<GRIDSIZE(n), BLOCKSIZE>>>(g, g, -(lr / m), 1, n);
-        cudaDeviceSynchronize();
 
         // theta = theta + (-g) = theta - g
         vec_add<<<GRIDSIZE(n), BLOCKSIZE>>>(thetad, g, thetad, 1, n);
-        cudaDeviceSynchronize();
-
     }
+
+    cudaDeviceSynchronize();
 
     cudaFree(z);
 	cudaFree(h);
@@ -123,7 +124,7 @@ int	main(void)
 	memcpy(y, y_house, sizeof(double) * 21613);
 
     // Call host function for fit
-    fit(X, y, theta, 0.01, m, n, 100);
+    fit(X, y, theta, 0.01, m, n, 100, false);
     
     printf("Theta after 100 iterations: ");
     for (int i = 0; i < n; i++) {
@@ -151,7 +152,7 @@ int	main(void)
     size_t local_m = 21;
     for (int i = 0; i < 4; i++) {
         clock_t start = clock();
-        fit(X, y, theta, 0.01, local_m, n, 100);
+        fit(X, y, theta, 0.01, local_m, n, 100, false);
         clock_t end = clock();
         printf("%d,%f\n", local_m, ((double) (end - start)) / CLOCKS_PER_SEC);
         local_m *= 10;
