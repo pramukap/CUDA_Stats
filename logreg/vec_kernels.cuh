@@ -3,6 +3,10 @@
 #include    "cuda_runtime.h"
 
 #include    "stddef.h"
+
+__global__
+void    mat_transpose(double *X, double *Xt, size_t m, size_t n);
+
 __global__
 void    vec_add(double *a, double *b, double *out, size_t stride, size_t n);
 

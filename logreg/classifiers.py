@@ -9,6 +9,7 @@ class PyLogisticRegression:
         self.lr = lr
         self.num_iter = num_iter
         self.fit_intercept = fit_intercept
+        self.verbose = verbose
     
     def __add_intercept(self, X):
         intercept = np.ones((X.shape[0], 1))

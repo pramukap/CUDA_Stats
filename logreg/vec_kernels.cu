@@ -5,6 +5,18 @@
 #include    <cmath>
 
 __global__
+void    mat_transpose(double *X, double *Xt, size_t m, size_t n)
+{
+    size_t gid = threadIdx.x + blockIdx.x * blockDim.x;
+    if (gid >= m*n)
+        return;
+
+    size_t row = gid / n;
+    size_t col = gid % n;
+    Xt[col * m + row] = X[row * n + col];
+}
+
+__global__
 void	vec_dot_mat(double *X, double *y, double *out, size_t m, size_t n)
 {
 	size_t row_idx = threadIdx.x + blockDim.x * blockIdx.x;
