@@ -56,12 +56,12 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
             printf("%f\t",centroids[i]);
         }
         printf("\n\n");
-/*
+
         // Assignment Step
         init_zeros<<<m, 1>>>(distances);
         assignClasses<<<m, 1>>>(data_d, centroids_d, m, n, k, labels, distances);
 
-*/
+/*
         // OLD ASSIGNMENT
         for(int point = 0; point < m; point++){
 
@@ -71,7 +71,7 @@ void kmeans(double* data, int m, int n, int k, double* centroids, int iterations
             addPointToMeans<<<k, n>>>(data_d, centroids_d, m, n, k, point);
 
         }
-        // Update Means Step
+*/        // Update Means Step
         init_zeros<<<k, 1>>>(counts);
         init_zeros<<<k, n>>>(new_mean);
         findNewCentroids<<<m, n>>>(data_d, new_mean, labels, m, n, k, counts);
