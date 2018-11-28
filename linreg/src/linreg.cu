@@ -154,14 +154,14 @@ __global__ void MatrixMul(double * A, double * B, double * C, int Ax, int Ay, in
 
 // Adds the value lambda to the diagonal of the input matrix
 // O(1) time
-// O(Ax * Ay) work
+// O(Ax) work
 __global__ void AddLambdaToDiagonal(double * A, double lambda, int Ax, int Ay) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 
-	int my_row_pivot_index = (Ax * (x / Ax)) + (x / Ax);
+	int idx = Ay * x + x % Ay;
 
-	if (my_row_pivot_index == x) {
-		A[x] = A[x] + lambda;
+	if (idx != 0) {
+		A[idx] = A[idx] + lambda;
 	}
 }
 
@@ -230,7 +230,7 @@ void get_beta(double * A, double * B, double * C, int Ax, int Ay, double lambda)
 	MatrixMul << <Ax, Ax >> > (MatB_d, MatA1_d, MatC_d, Ay, Ax, Ax, Ay); // O(Ay)
 
 	// Regularization C = C - lambda*I
-	AddLambdaToDiagonal << <Ax, Ax >> > (MatC_d, lambda, Ax, Ax); // O(1)
+	AddLambdaToDiagonal << <Ax, 1 >> > (MatC_d, lambda, Ax, Ax); // O(1)
 
 	// Invert C
 	MatrixAppendIdentity << <Ax, 2 * Ax >> > (MatC_d, MatD_d, Ax, Ax); // O(1)
@@ -365,28 +365,28 @@ void linreg(double * A, double * B, double * C, int Ax, int Ay) {
 
 		int x;
 
-		// Test with 10 training observations
+		// Test with 1/100 training observations
 		// Fit a line to the training data
 		start = clock();
-		get_beta(MatA3, MatB3, MatC3, AX, (AY / 100), 0.0655);
+		get_beta(MatA3, MatB3, MatC3, AX, (AY / 100), 75);
 		end = clock();
 		time3 = ((double)(end - start)) / CLOCKS_PER_SEC;
 		// Apply the beta vector to the input data to get the predicted values
 		linreg(MatD, MatC3, MatE3, AX, Yt);
 
-		// Test with 100 training observations
+		// Test with 1/10 training observations
 		start = clock();
-		get_beta(MatA2, MatB2, MatC2, AX, (AY / 10), 0.0655);
+		get_beta(MatA2, MatB2, MatC2, AX, (AY / 10), 75);
 		end = clock();
 		time2 = ((double)(end - start)) / CLOCKS_PER_SEC;
 		linreg(MatD, MatC2, MatE2, AX, Yt);
 
-		// Test with 1000 training observations
+		// Test with all training observations
 		start = clock();
-		get_beta(MatA, MatB, MatC, AX, AY, 0.0655);
+		get_beta(MatA, MatB, MatC, AX, AY, 75);
 		end = clock();
 		time = ((double)(end - start)) / CLOCKS_PER_SEC;
-		linreg(MatD, MatC, MatE, AX, Yt);
+		linreg(MatD, MatC, MatE, AX, Yt);;
 
 		// Print test reports
 		double to_add, to_add2, to_add3;
